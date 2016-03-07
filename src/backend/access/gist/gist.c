@@ -283,7 +283,7 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 				memmove(itvec + pos, itvec + pos + 1, sizeof(IndexTuple) * (tlen - pos));
 		}
 		itvec = gistjoinvector(itvec, &tlen, itup, ntup);
-		dist = gistSplit(rel, page, itvec, tlen, giststate);
+		dist = gistSplit(rel, page, itvec, tlen, giststate,gistfitpage);
 
 		/*
 		 * Check that split didn't produce too many pages.
@@ -1314,7 +1314,8 @@ gistSplit(Relation r,
 		  Page page,
 		  IndexTuple *itup,		/* contains compressed entry */
 		  int len,
-		  GISTSTATE *giststate)
+		  GISTSTATE *giststate,bool
+		  (*fitfunction)(IndexTuple*, int))
 {
 	IndexTuple *lvectup,
 			   *rvectup;
@@ -1354,9 +1355,9 @@ gistSplit(Relation r,
 		rvectup[i] = itup[v.splitVector.spl_right[i] - 1];
 
 	/* finalize splitting (may need another split) */
-	if (!gistfitpage(rvectup, v.splitVector.spl_nright))
+	if (!(fitfunction)(rvectup, v.splitVector.spl_nright))
 	{
-		res = gistSplit(r, page, rvectup, v.splitVector.spl_nright, giststate);
+		res = gistSplit(r, page, rvectup, v.splitVector.spl_nright, giststate,fitfunction);
 	}
 	else
 	{
@@ -1366,12 +1367,12 @@ gistSplit(Relation r,
 		res->itup = gistFormTuple(giststate, r, v.spl_rattr, v.spl_risnull, false);
 	}
 
-	if (!gistfitpage(lvectup, v.splitVector.spl_nleft))
+	if (!(fitfunction)(lvectup, v.splitVector.spl_nleft))
 	{
 		SplitedPageLayout *resptr,
 				   *subres;
 
-		resptr = subres = gistSplit(r, page, lvectup, v.splitVector.spl_nleft, giststate);
+		resptr = subres = gistSplit(r, page, lvectup, v.splitVector.spl_nleft, giststate,fitfunction);
 
 		/* install on list's tail */
 		while (resptr->next)

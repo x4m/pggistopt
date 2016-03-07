@@ -324,6 +324,7 @@ typedef struct
 #define  GistTupleIsInvalid(itup)	( ItemPointerGetOffsetNumber( &((itup)->t_tid) ) == TUPLE_IS_INVALID )
 #define  GistTupleSetValid(itup)	ItemPointerSetOffsetNumber( &((itup)->t_tid), TUPLE_IS_VALID )
 
+#define SKIPTUPLE_TRESHOLD	0x20
 #define TUPLE_IS_SKIP		0x1
 #define  GistTupleIsSkip(itup)	( itup->t_skipflags == TUPLE_IS_SKIP )
 #define  GistTupleGetSkipCount(itup)	( itup->t_skipcount )
@@ -461,7 +462,8 @@ extern bool gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 				bool markleftchild);
 
 extern SplitedPageLayout *gistSplit(Relation r, Page page, IndexTuple *itup,
-		  int len, GISTSTATE *giststate);
+		  int len, GISTSTATE *giststate,bool
+		  (*fitfunction)(IndexTuple*, int));
 
 /* gistxlog.c */
 extern void gist_redo(XLogReaderState *record);

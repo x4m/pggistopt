@@ -83,6 +83,16 @@ gistfitpage(IndexTuple *itvec, int len)
 	return (size <= GiSTPageSize);
 }
 
+
+bool
+gistfitskiptuple(IndexTuple *itvec, int len)
+{
+	/*TODO: we could consider actual sqrt-decomposition here
+	 * , but current aim is to build full bush of skiplists,
+	 * not just two-level structure*/
+	return len>SKIPTUPLE_TRESHOLD;
+}
+
 /*
  * Read buffer into itup vector
  */

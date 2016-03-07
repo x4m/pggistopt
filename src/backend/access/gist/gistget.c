@@ -423,6 +423,8 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 			if(skip_tuple)//we found unmatching skiptuple
 			{
 				int skip_count = GistTupleGetSkipCount(it);
+
+				elog(NOTICE, "Skipping %d records", skip_count);
 				while(skip_count>0)
 				{
 					i = OffsetNumberNext(i);
