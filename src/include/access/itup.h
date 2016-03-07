@@ -47,6 +47,8 @@ typedef struct IndexTupleData
 	 */
 
 	unsigned short t_info;		/* various info about tuple */
+	unsigned short t_skipflags;
+	unsigned short t_skipcount;
 
 } IndexTupleData;				/* MORE DATA FOLLOWS AT END OF STRUCT */
 

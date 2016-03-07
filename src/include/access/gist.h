@@ -55,12 +55,15 @@ typedef XLogRecPtr GistNSN;
  */
 typedef PageXLogRecPtr PageGistNSN;
 
+#define GistOpaquExtraSize (4096-(sizeof(PageGistNSN)+sizeof(BlockNumber)+sizeof(uint16)*2))
+
 typedef struct GISTPageOpaqueData
 {
 	PageGistNSN nsn;			/* this value must change on page split */
 	BlockNumber rightlink;		/* next page if any */
 	uint16		flags;			/* see bit definitions above */
 	uint16		gist_page_id;	/* for identification of GiST indexes */
+	uint16 data[GistOpaquExtraSize/sizeof(uint16)];
 } GISTPageOpaqueData;
 
 typedef GISTPageOpaqueData *GISTPageOpaque;

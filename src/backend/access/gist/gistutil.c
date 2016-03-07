@@ -432,6 +432,11 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 	for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
 	{
 		IndexTuple	itup = (IndexTuple) PageGetItem(p, PageGetItemId(p, i));
+
+		/*TODO: use skiptuple info for choose*/
+		if(GistTupleIsSkip(itup))
+			continue;
+
 		bool		zero_penalty;
 		int			j;
 
