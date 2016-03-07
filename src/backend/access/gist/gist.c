@@ -393,6 +393,8 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 		for (ptr = dist; ptr; ptr = ptr->next)
 		{
 			char	   *data = (char *) (ptr->list);
+			IndexTuple* skipvector = gistextractsplitpagelayout(ptr);
+			SplitedPageLayout* skiplist = gistSplit(rel, page, skipvector, ptr->block.num, giststate,gistfitskiptuple);
 
 			for (i = 0; i < ptr->block.num; i++)
 			{

@@ -112,6 +112,26 @@ gistextractpage(Page page, int *len /* out */ )
 	return itvec;
 }
 
+
+/*
+ * Read split info into itup vector
+ */
+IndexTuple *
+gistextractsplitpagelayout(SplitedPageLayout*ptr)
+{
+	IndexTuple *itvec = palloc(sizeof(IndexTuple) * ptr->block.num);
+	char	   *data = (char *) (ptr->list);
+	int i;
+	for (i = 0; i < ptr->block.num; i++)
+				{
+					IndexTuple	thistup = (IndexTuple) data;
+					itvec[i]=data;
+					data += IndexTupleSize(thistup);
+				}
+
+	return itvec;
+}
+
 /*
  * join two vectors into one
  */

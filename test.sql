@@ -1,6 +1,6 @@
 ﻿\timing
 
-create extension cube;
+create extension if not exists cube;
 begin transaction;
 create table dataTable(c cube);
 create index idx on dataTable using gist(c);
