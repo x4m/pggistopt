@@ -420,7 +420,7 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 		/* Ignore tuple if it doesn't match */
 		if (!match)
 		{
-			if(skip_tuple)
+			if(skip_tuple)//we found unmatching skiptuple
 			{
 				int skip_count = GistTupleGetSkipCount(it);
 				while(skip_count>0)
@@ -432,6 +432,7 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 			continue;
 		}
 
+		/*if skiptuple matches - we just goon reading next tuples*/
 		if(skip_tuple)
 			continue;
 
