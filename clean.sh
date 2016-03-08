@@ -1,3 +1,3 @@
 #!/bin/sh
-rm -r /home/pgsql/DemoDir
-/home/x4m/project/bin/initdb DemoDir
+rm -r /home/x4m/pgsql/DemoDir
+/home/x4m/project/bin/initdb /home/x4m/pgsql/DemoDir

@@ -20,7 +20,7 @@
 #include "storage/indexfsm.h"
 #include "storage/lmgr.h"
 #include "utils/builtins.h"
-
+#include <signal.h>
 
 /*
  * Write itup vector to page, has no control of free space.
@@ -774,6 +774,7 @@ void
 gistcheckpage(Relation rel, Buffer buf)
 {
 	Page		page = BufferGetPage(buf);
+	int maxoff,i,o;
 
 	/*
 	 * ReadBuffer verifies that every newly-read page passes
@@ -799,6 +800,25 @@ gistcheckpage(Relation rel, Buffer buf)
 						RelationGetRelationName(rel),
 						BufferGetBlockNumber(buf)),
 				 errhint("Please REINDEX it.")));
+
+	maxoff = PageGetMaxOffsetNumber(page);
+
+		for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
+		{
+			IndexTuple itup = (IndexTuple) PageGetItem(page, PageGetItemId(page, i));
+			if (GistTupleIsSkip(itup))
+			{
+				for (o = i+1; o <= i+GistTupleGetSkipCount(itup); o = OffsetNumberNext(o))
+				{
+					IndexTuple otup = (IndexTuple) PageGetItem(page, PageGetItemId(page, o));
+					if(GistTupleIsSkip(otup))
+					{
+						//raise(SIGTRAP);
+						elog(ERROR,"wrong place for skiptuple at %d skiptuple index %d skipcount %d",o,i,GistTupleGetSkipCount(itup));
+					}
+				}
+			}
+		}
 }
 
 

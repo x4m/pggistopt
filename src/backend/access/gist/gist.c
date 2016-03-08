@@ -404,27 +404,30 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 				if(gistfitskiplayout(skiplist))
 				{
 					elog(NOTICE,"placing skipgroups");
-					int throghoutIndex = FirstOffsetNumber;
+					//int throghoutIndex = FirstOffsetNumber;
 					fallback = false;
 
 					for (sptr = skiplist; sptr; sptr = sptr->next) {
 						GistTupleSetSkip(sptr->itup);
 						GistTupleSetSkipCount(sptr->itup, sptr->block.num);
 						if (PageAddItem(ptr->page, sptr->itup,
-								IndexTupleSize(sptr->itup), throghoutIndex++,
+								IndexTupleSize(sptr->itup), InvalidOffsetNumber,
 								false, false) == InvalidOffsetNumber)
 							elog(ERROR,
 									"failed to add skip item to index page in \"%s\" tuple size %d thruidx is %d",
 									RelationGetRelationName(rel),
-									IndexTupleSize(sptr->itup), throghoutIndex);
-						elog(NOTICE, "Skiptuple added thdx %d skipcount %d", throghoutIndex-1,sptr->block.num);
+									IndexTupleSize(sptr->itup), InvalidOffsetNumber);
+						elog(NOTICE, "Skiptuple added thdx %d skipcount %d", InvalidOffsetNumber-1,sptr->block.num);
 
 						char *sdata = (char *) (sptr->list);
-						for (i = 0; i < sptr->block.num; i++) {
+						for (i = 0; i < sptr->block.num; i++)
+						{
 							IndexTuple thistup = (IndexTuple) sdata;
+							if(GistTupleIsSkip(thistup))
+								elog(ERROR,"Skip tuple mischief");
 
 							if (PageAddItem(ptr->page, (Item) sdata,
-									IndexTupleSize(thistup), throghoutIndex++,
+									IndexTupleSize(thistup), InvalidOffsetNumber,
 									false, false) == InvalidOffsetNumber)
 							{
 								elog(NOTICE,"fallback not requested size %d preskip size %d",skiplist->lenlist,ptr->lenlist);
@@ -440,13 +443,14 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 							if (newblkno
 									&& ItemPointerEquals(&thistup->t_tid,
 											&(*itup)->t_tid))
-								*newblkno = sptr->block.blkno;
+								*newblkno = ptr->block.blkno;
 
 							sdata += IndexTupleSize(thistup);
 						}
 						elog(NOTICE,"skipgroup placed");
 					}
 					elog(NOTICE,"All skipgroup placed");
+					gistcheckpage(rel,ptr->buffer);
 				}
 				else
 				{
@@ -1604,6 +1608,7 @@ gistvacuumpage(Relation rel, Page page, Buffer buffer)
 
 	if (ndeletable > 0)
 	{
+		elog(ERROR,"I was not going to delete anything");//todo
 		START_CRIT_SECTION();
 
 		PageIndexMultiDelete(page, deletable, ndeletable);
