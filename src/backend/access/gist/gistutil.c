@@ -89,7 +89,7 @@ gistfitskiplayout(SplitedPageLayout*ptr)
 	int totallength = 0;
 	for (; ptr; ptr = ptr->next)
 	{
-		totallength+=ptr->lenlist+IndexTupleSize(ptr->itup)+ sizeof(ItemIdData);
+		totallength += ptr->lenlist + IndexTupleSize(ptr->itup) + sizeof(ItemIdData)*(ptr->block.num+1);
 	}
 	return totallength<= GiSTPageSize;
 }
@@ -117,7 +117,7 @@ gistextractpage(Page page, int *len /* out */ )
 	IndexTuple *itvec;
 
 	maxoff = PageGetMaxOffsetNumber(page);
-	*len = maxoff;
+	//*len = maxoff;
 	itvec = palloc(sizeof(IndexTuple) * maxoff);
 	for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
 	{
@@ -125,6 +125,7 @@ gistextractpage(Page page, int *len /* out */ )
 		if (!GistTupleIsSkip(itup))
 			itvec[counter++] = itup;
 	}
+	*len = counter;
 
 	return itvec;
 }

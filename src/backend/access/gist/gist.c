@@ -424,9 +424,12 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 							if (PageAddItem(ptr->page, (Item) sdata,
 									IndexTupleSize(thistup), throghoutIndex++,
 									false, false) == InvalidOffsetNumber)
+							{
+								elog(NOTICE,"fallback not requested size %d preskip size %d",skiplist->lenlist,ptr->lenlist);
 								elog(ERROR,
 										"failed to add item to index page in \"%s\"",
 										RelationGetRelationName(rel));
+							}
 
 							/*
 							 * If this is the first inserted/updated tuple, let the caller
@@ -442,16 +445,21 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 					}
 
 				}
+				else
+				{
+					elog(NOTICE,"requesting fallback size %d preskip size %d",skiplist->lenlist,ptr->lenlist);
+				}
 				pfree(skipvector);
 			}
 			if(fallback)
 			{
+				elog(NOTICE, "fallback activated");
 				for (i = 0; i < ptr->block.num; i++)
 				{
 					IndexTuple	thistup = (IndexTuple) data;
 
 					if (PageAddItem(ptr->page, (Item) data, IndexTupleSize(thistup), i + FirstOffsetNumber, false, false) == InvalidOffsetNumber)
-						elog(ERROR, "failed to add item to index page in \"%s\"", RelationGetRelationName(rel));
+						elog(ERROR, "failed to add fallback item to index page in \"%s\"", RelationGetRelationName(rel));
 
 					/*
 					 * If this is the first inserted/updated tuple, let the caller
@@ -955,6 +963,8 @@ gistFindPath(Relation r, BlockNumber child, OffsetNumber *downlinkoffnum)
 		{
 			iid = PageGetItemId(page, i);
 			idxtuple = (IndexTuple) PageGetItem(page, iid);
+			if(GistTupleIsSkip(idxtuple))
+				continue;
 			blkno = ItemPointerGetBlockNumber(&(idxtuple->t_tid));
 			if (blkno == child)
 			{
@@ -1014,6 +1024,8 @@ gistFindCorrectParent(Relation r, GISTInsertStack *child)
 			{
 				iid = PageGetItemId(parent->page, i);
 				idxtuple = (IndexTuple) PageGetItem(parent->page, iid);
+				if(GistTupleIsSkip(idxtuple))
+					continue;
 				if (ItemPointerGetBlockNumber(&(idxtuple->t_tid)) == child->blkno)
 				{
 					/* yes!!, found */
@@ -1091,6 +1103,9 @@ gistformdownlink(Relation rel, Buffer buf, GISTSTATE *giststate,
 	{
 		IndexTuple	ituple = (IndexTuple)
 		PageGetItem(page, PageGetItemId(page, offset));
+
+		if(GistTupleIsSkip(ituple))
+			continue;
 
 		if (downlink == NULL)
 			downlink = CopyIndexTuple(ituple);

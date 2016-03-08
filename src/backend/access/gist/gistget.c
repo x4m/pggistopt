@@ -424,7 +424,7 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 			{
 				int skip_count = GistTupleGetSkipCount(it);
 
-				elog(NOTICE, "Skipping %d records", skip_count);
+				//elog(NOTICE, "Skipping %d records", skip_count);
 				while(skip_count>0)
 				{
 					i = OffsetNumberNext(i);
