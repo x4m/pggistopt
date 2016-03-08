@@ -392,25 +392,76 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 		 */
 		for (ptr = dist; ptr; ptr = ptr->next)
 		{
-			char	   *data = (char *) (ptr->list);
-			IndexTuple* skipvector = gistextractsplitpagelayout(ptr);
-			SplitedPageLayout* skiplist = gistSplit(rel, page, skipvector, ptr->block.num, giststate,gistfitskiptuple);
+			char	*data = (char *) (ptr->list);
+			bool 	fallback = true;
 
-			for (i = 0; i < ptr->block.num; i++)
+			if(ptr->block.num>SKIPTUPLE_TRESHOLD)
 			{
-				IndexTuple	thistup = (IndexTuple) data;
+				IndexTuple* skipvector = gistextractsplitpagelayout(ptr);
+				SplitedPageLayout* skiplist,*sptr;
+				skiplist = gistSplit(rel, page, skipvector, ptr->block.num, giststate,gistfitskiptuple);
+				if(gistfitskiplayout(skiplist))
+				{
+					int throghoutIndex = FirstOffsetNumber;
+					fallback = false;
 
-				if (PageAddItem(ptr->page, (Item) data, IndexTupleSize(thistup), i + FirstOffsetNumber, false, false) == InvalidOffsetNumber)
-					elog(ERROR, "failed to add item to index page in \"%s\"", RelationGetRelationName(rel));
+					for (sptr = skiplist; sptr; sptr = sptr->next) {
+						GistTupleSetSkip(sptr->itup);
+						GistTupleSetSkipCount(sptr->itup, sptr->block.num);
+						if (PageAddItem(ptr->page, sptr->itup,
+								IndexTupleSize(sptr->itup), throghoutIndex++,
+								false, false) == InvalidOffsetNumber)
+							elog(ERROR,
+									"failed to add skip item to index page in \"%s\" tuple size %d thruidx is %d",
+									RelationGetRelationName(rel),
+									IndexTupleSize(sptr->itup), throghoutIndex);
+						elog(NOTICE, "Skiptuple added thdx %d", throghoutIndex);
 
-				/*
-				 * If this is the first inserted/updated tuple, let the caller
-				 * know which page it landed on.
-				 */
-				if (newblkno && ItemPointerEquals(&thistup->t_tid, &(*itup)->t_tid))
-					*newblkno = ptr->block.blkno;
+						char *sdata = (char *) (sptr->list);
+						for (i = 0; i < sptr->block.num; i++) {
+							IndexTuple thistup = (IndexTuple) sdata;
 
-				data += IndexTupleSize(thistup);
+							if (PageAddItem(ptr->page, (Item) sdata,
+									IndexTupleSize(thistup), throghoutIndex++,
+									false, false) == InvalidOffsetNumber)
+								elog(ERROR,
+										"failed to add item to index page in \"%s\"",
+										RelationGetRelationName(rel));
+
+							/*
+							 * If this is the first inserted/updated tuple, let the caller
+							 * know which page it landed on.
+							 */
+							if (newblkno
+									&& ItemPointerEquals(&thistup->t_tid,
+											&(*itup)->t_tid))
+								*newblkno = sptr->block.blkno;
+
+							sdata += IndexTupleSize(thistup);
+						}
+					}
+
+				}
+				pfree(skipvector);
+			}
+			if(fallback)
+			{
+				for (i = 0; i < ptr->block.num; i++)
+				{
+					IndexTuple	thistup = (IndexTuple) data;
+
+					if (PageAddItem(ptr->page, (Item) data, IndexTupleSize(thistup), i + FirstOffsetNumber, false, false) == InvalidOffsetNumber)
+						elog(ERROR, "failed to add item to index page in \"%s\"", RelationGetRelationName(rel));
+
+					/*
+					 * If this is the first inserted/updated tuple, let the caller
+					 * know which page it landed on.
+					 */
+					if (newblkno && ItemPointerEquals(&thistup->t_tid, &(*itup)->t_tid))
+						*newblkno = ptr->block.blkno;
+
+					data += IndexTupleSize(thistup);
+				}
 			}
 
 			/* Set up rightlinks */

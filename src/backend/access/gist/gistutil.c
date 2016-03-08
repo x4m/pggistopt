@@ -83,6 +83,17 @@ gistfitpage(IndexTuple *itvec, int len)
 	return (size <= GiSTPageSize);
 }
 
+bool
+gistfitskiplayout(SplitedPageLayout*ptr)
+{
+	int totallength = 0;
+	for (; ptr; ptr = ptr->next)
+	{
+		totallength+=ptr->lenlist+IndexTupleSize(ptr->itup)+ sizeof(ItemIdData);
+	}
+	return totallength<= GiSTPageSize;
+}
+
 
 bool
 gistfitskiptuple(IndexTuple *itvec, int len)
@@ -90,7 +101,8 @@ gistfitskiptuple(IndexTuple *itvec, int len)
 	/*TODO: we could consider actual sqrt-decomposition here
 	 * , but current aim is to build full bush of skiplists,
 	 * not just two-level structure*/
-	return len>SKIPTUPLE_TRESHOLD;
+
+	return len<=SKIPTUPLE_TRESHOLD;
 }
 
 /*
@@ -101,13 +113,18 @@ gistextractpage(Page page, int *len /* out */ )
 {
 	OffsetNumber i,
 				maxoff;
+	int counter = 0;
 	IndexTuple *itvec;
 
 	maxoff = PageGetMaxOffsetNumber(page);
 	*len = maxoff;
 	itvec = palloc(sizeof(IndexTuple) * maxoff);
 	for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
-		itvec[i - FirstOffsetNumber] = (IndexTuple) PageGetItem(page, PageGetItemId(page, i));
+	{
+		IndexTuple itup = (IndexTuple) PageGetItem(page, PageGetItemId(page, i));
+		if (!GistTupleIsSkip(itup))
+			itvec[counter++] = itup;
+	}
 
 	return itvec;
 }

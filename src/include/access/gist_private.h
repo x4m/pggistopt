@@ -501,6 +501,7 @@ extern bool gistvalidate(Oid opclassoid);
 
 extern bytea *gistoptions(Datum reloptions, bool validate);
 extern bool gistfitpage(IndexTuple *itvec, int len);
+extern bool gistfitskiplayout(SplitedPageLayout *ptr);
 extern bool gistfitskiptuple(IndexTuple *itvec, int len);
 extern bool gistnospace(Page page, IndexTuple *itvec, int len, OffsetNumber todelete, Size freespace);
 extern void gistcheckpage(Relation rel, Buffer buf);
