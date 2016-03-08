@@ -2,6 +2,7 @@
 SET client_min_messages = 'DEBUG5';
 SET log_min_messages = 'DEBUG5';
 SET wal_level = 'minimal';
+SELECT setseed(42);
 
 create extension if not exists cube;
 begin transaction;

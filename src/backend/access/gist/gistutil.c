@@ -814,7 +814,7 @@ gistcheckpage(Relation rel, Buffer buf)
 					if(GistTupleIsSkip(otup))
 					{
 						//raise(SIGTRAP);
-						elog(ERROR,"wrong place for skiptuple at %d skiptuple index %d skipcount %d",o,i,GistTupleGetSkipCount(itup));
+						elog(ERROR,"wrong place for skiptuple at %d skiptuple index %d skipcount %d page %x",o,i,GistTupleGetSkipCount(itup),page);
 					}
 				}
 			}

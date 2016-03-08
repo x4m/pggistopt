@@ -449,7 +449,7 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 						}
 						elog(NOTICE,"skipgroup placed");
 					}
-					elog(NOTICE,"All skipgroup placed");
+					elog(NOTICE,"All skipgroup placed on page %x",ptr->page);
 					gistcheckpage(rel,ptr->buffer);
 				}
 				else
@@ -691,6 +691,7 @@ gistdoinsert(Relation r, IndexTuple itup, Size freespace, GISTSTATE *giststate)
 		if (!xlocked)
 		{
 			LockBuffer(stack->buffer, GIST_SHARE);
+			//elog(NOTICE,"check gistdoinsert");
 			gistcheckpage(state.r, stack->buffer);
 		}
 
@@ -770,6 +771,8 @@ gistdoinsert(Relation r, IndexTuple itup, Size freespace, GISTSTATE *giststate)
 			newtup = gistgetadjusted(state.r, idxtuple, itup, giststate);
 			if (newtup)
 			{
+				if(GistTupleIsSkip(newtup))
+					elog(ERROR,"Adjusted to skiptuple");
 				/*
 				 * Swap shared lock for an exclusive one. Beware, the page may
 				 * change while we unlock/lock the page...
@@ -815,6 +818,8 @@ gistdoinsert(Relation r, IndexTuple itup, Size freespace, GISTSTATE *giststate)
 					}
 					continue;
 				}
+				//elog(NOTICE,"check after insert");
+				//gistcheckpage(state.r, stack->buffer);
 			}
 			LockBuffer(stack->buffer, GIST_UNLOCK);
 			xlocked = false;
@@ -932,6 +937,7 @@ gistFindPath(Relation r, BlockNumber child, OffsetNumber *downlinkoffnum)
 
 		buffer = ReadBuffer(r, top->blkno);
 		LockBuffer(buffer, GIST_SHARE);
+		//elog(NOTICE,"check gistFindPath");
 		gistcheckpage(r, buffer);
 		page = (Page) BufferGetPage(buffer);
 
@@ -1022,6 +1028,7 @@ gistFindCorrectParent(Relation r, GISTInsertStack *child)
 {
 	GISTInsertStack *parent = child->parent;
 
+	elog(NOTICE,"check gistFindCorrectParetn1");
 	gistcheckpage(r, parent->buffer);
 	parent->page = (Page) BufferGetPage(parent->buffer);
 
@@ -1065,6 +1072,7 @@ gistFindCorrectParent(Relation r, GISTInsertStack *child)
 			}
 			parent->buffer = ReadBuffer(r, parent->blkno);
 			LockBuffer(parent->buffer, GIST_EXCLUSIVE);
+			elog(NOTICE,"check gistFindCorrectParent2");
 			gistcheckpage(r, parent->buffer);
 			parent->page = (Page) BufferGetPage(parent->buffer);
 		}
@@ -1154,6 +1162,8 @@ gistformdownlink(Relation rel, Buffer buf, GISTSTATE *giststate,
 		ItemId		iid;
 
 		LockBuffer(stack->parent->buffer, GIST_EXCLUSIVE);
+
+
 		gistFindCorrectParent(rel, stack);
 		iid = PageGetItemId(stack->parent->page, stack->downlinkoffnum);
 		downlink = (IndexTuple) PageGetItem(stack->parent->page, iid);
@@ -1300,7 +1310,15 @@ gistinserttuples(GISTInsertState *state, GISTInsertStack *stack,
 	 * didn't have to split, release it ourselves.
 	 */
 	if (splitinfo)
+	{
+		/*elog(NOTICE,"before finishsplit doing");
+		gistcheckpage(state->r,stack->buffer);
+		elog(NOTICE,"before finishsplit done ");*/
 		gistfinishsplit(state, stack, giststate, splitinfo, unlockbuf);
+		/*elog(NOTICE,"after finishsplit doing");
+		gistcheckpage(state->r,stack->buffer);
+		elog(NOTICE,"after finishsplit done");*/
+	}
 	else if (unlockbuf)
 		LockBuffer(stack->buffer, GIST_UNLOCK);
 
@@ -1365,6 +1383,9 @@ gistfinishsplit(GISTInsertState *state, GISTInsertStack *stack,
 			 * If the parent page was split, need to relocate the original
 			 * parent pointer.
 			 */
+			/*elog(NOTICE,"check finishspit");
+				gistcheckpage(state->r, stack->buffer);*/
+
 			gistFindCorrectParent(state->r, stack);
 		}
 		/* gistinserttuples() released the lock on right->buf. */
