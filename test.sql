@@ -1,11 +1,14 @@
 ﻿\timing
+SET client_min_messages = 'DEBUG5';
+SET log_min_messages = 'DEBUG5';
+SET wal_level = 'minimal';
 
 create extension if not exists cube;
 begin transaction;
 create table dataTable(c cube);
 create index idx on dataTable using gist(c);
 
-insert into dataTable(c) select cube(array[random(),random(),random()]) from generate_series(1,1e4,1);
+insert into dataTable(c) select cube(array[random(),random(),random()]) from generate_series(1,1e5,1);
 
 create table queries(id int,l1 float,l2 float,l3 float, u1 float,u2 float, u3 float, q cube);
 insert into queries(id,l1,l2,l3) select s,random(),random(),random() from generate_series(1,1e4,1) s;

@@ -143,6 +143,8 @@ gistextractsplitpagelayout(SplitedPageLayout*ptr)
 	for (i = 0; i < ptr->block.num; i++)
 				{
 					IndexTuple	thistup = (IndexTuple) data;
+					if(GistTupleIsSkip(thistup))
+						elog(ERROR,"Skiptuple found in skipgroup");
 					itvec[i]=data;
 					data += IndexTupleSize(thistup);
 				}

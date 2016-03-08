@@ -390,6 +390,7 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 		 * Fill all pages. All the pages are new, ie. freshly allocated empty
 		 * pages, or a temporary copy of the old page.
 		 */
+		elog(NOTICE,"filling pages after split");
 		for (ptr = dist; ptr; ptr = ptr->next)
 		{
 			char	*data = (char *) (ptr->list);
@@ -402,6 +403,7 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 				skiplist = gistSplit(rel, page, skipvector, ptr->block.num, giststate,gistfitskiptuple);
 				if(gistfitskiplayout(skiplist))
 				{
+					elog(NOTICE,"placing skipgroups");
 					int throghoutIndex = FirstOffsetNumber;
 					fallback = false;
 
@@ -415,7 +417,7 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 									"failed to add skip item to index page in \"%s\" tuple size %d thruidx is %d",
 									RelationGetRelationName(rel),
 									IndexTupleSize(sptr->itup), throghoutIndex);
-						elog(NOTICE, "Skiptuple added thdx %d", throghoutIndex);
+						elog(NOTICE, "Skiptuple added thdx %d skipcount %d", throghoutIndex-1,sptr->block.num);
 
 						char *sdata = (char *) (sptr->list);
 						for (i = 0; i < sptr->block.num; i++) {
@@ -442,8 +444,9 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 
 							sdata += IndexTupleSize(thistup);
 						}
+						elog(NOTICE,"skipgroup placed");
 					}
-
+					elog(NOTICE,"All skipgroup placed");
 				}
 				else
 				{
@@ -499,6 +502,7 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 			 */
 			GistPageSetNSN(ptr->page, oldnsn);
 		}
+		elog(NOTICE, "split write finished");
 
 		/*
 		 * gistXLogSplit() needs to WAL log a lot of pages, prepare WAL
@@ -507,6 +511,7 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 		 */
 		if (RelationNeedsWAL(rel))
 			XLogEnsureRecordSpace(npage, 1 + npage * 2);
+		elog(NOTICE, "XLogEnsureRecordSpace done");
 
 		START_CRIT_SECTION();
 
@@ -518,6 +523,7 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 			MarkBufferDirty(ptr->buffer);
 		if (BufferIsValid(leftchildbuf))
 			MarkBufferDirty(leftchildbuf);
+		elog(NOTICE, "MarkBufferDirty done");
 
 		/*
 		 * The first page in the chain was a temporary working copy meant to
@@ -526,6 +532,8 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 		PageRestoreTempPage(dist->page, BufferGetPage(dist->buffer));
 		dist->page = BufferGetPage(dist->buffer);
 
+		elog(NOTICE, "PageRestoreTempPage done");
+
 		/* Write the WAL record */
 		if (RelationNeedsWAL(rel))
 			recptr = gistXLogSplit(rel->rd_node, blkno, is_leaf,
@@ -533,6 +541,8 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 								   markfollowright);
 		else
 			recptr = gistGetFakeLSN(rel);
+
+		elog(NOTICE, "RelationNeedsWAL done");
 
 		for (ptr = dist; ptr; ptr = ptr->next)
 		{
@@ -551,6 +561,8 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 			for (ptr = dist->next; ptr; ptr = ptr->next)
 				UnlockReleaseBuffer(ptr->buffer);
 		}
+
+		elog(NOTICE, "Split done");
 	}
 	else
 	{
@@ -624,6 +636,9 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 	}
 
 	END_CRIT_SECTION();
+
+	if(is_split)
+		elog(NOTICE,"Getting out of gistplacetopage");
 
 	return is_split;
 }
