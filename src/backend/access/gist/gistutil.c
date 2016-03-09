@@ -416,7 +416,7 @@ gistgetadjusted(Relation r, IndexTuple oldtup, IndexTuple addtup, GISTSTATE *gis
  */
 OffsetNumber
 gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
-		   GISTSTATE *giststate)
+		   GISTSTATE *giststate, OffsetNumber *skipoffnum)
 {
 	OffsetNumber result;
 	OffsetNumber maxoff;
@@ -426,6 +426,7 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 				identry[INDEX_MAX_KEYS];
 	bool		isnull[INDEX_MAX_KEYS];
 	int			keep_current_best;
+	int			last_skipcount = 0;
 
 	Assert(!GistPageIsLeaf(p));
 
@@ -433,6 +434,7 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 					  it, NULL, (OffsetNumber) 0,
 					  identry, isnull);
 
+	*skipoffnum = InvalidOffsetNumber;
 	/* we'll return FirstOffsetNumber if page is empty (shouldn't happen) */
 	result = FirstOffsetNumber;
 
@@ -485,7 +487,11 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 
 		/*TODO: use skiptuple info for choose*/
 		if(GistTupleIsSkip(itup))
+		{
+			*skipoffnum = i;
+			last_skipcount = GistTupleGetSkipCount(itup);
 			continue;
+		}
 
 		bool		zero_penalty;
 		int			j;
@@ -584,6 +590,9 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 				break;
 		}
 	}
+
+	if(result - *skipoffnum > last_skipcount)
+		*skipoffnum = InvalidOffsetNumber;
 
 	return result;
 }

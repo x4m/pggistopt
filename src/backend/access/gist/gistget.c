@@ -425,7 +425,7 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 				int skip_count = GistTupleGetSkipCount(it);
 				int init_skip_count = GistTupleGetSkipCount(it);
 
-				elog(NOTICE, "Skipping %d records", skip_count);
+				//elog(NOTICE, "Skipping %d records", skip_count);
 				while(skip_count>0)
 				{
 					i = OffsetNumberNext(i);
@@ -435,7 +435,13 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 						iid = PageGetItemId(page, i);
 						it = (IndexTuple) PageGetItem(page, iid);
 						if(GistTupleIsSkip(it))
-							elog(NOTICE,"Encountered skip tuple skipcount %d  initial %d",skip_count,init_skip_count);
+							elog(ERROR,"Encountered skip tuple skipcount %d  initial %d",skip_count,init_skip_count);
+						match = gistindex_keytest(scan, it, page, i,
+														  &recheck, &recheck_distances);
+						if(match)
+							elog(NOTICE,"Skipping tuple we shouldn't; skipcount %d  initial %d",skip_count,init_skip_count);
+
+
 					}
 
 					skip_count--;
@@ -446,7 +452,9 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 
 		/*if skiptuple matches - we just goon reading next tuples*/
 		if(skip_tuple)
+		{
 			continue;
+		}
 
 		if (tbm && GistPageIsLeaf(page))
 		{

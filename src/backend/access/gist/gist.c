@@ -460,7 +460,7 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 			}
 			if(fallback)
 			{
-				elog(NOTICE, "fallback activated");
+				//elog(NOTICE, "fallback activated");
 				for (i = 0; i < ptr->block.num; i++)
 				{
 					IndexTuple	thistup = (IndexTuple) data;
@@ -747,8 +747,9 @@ gistdoinsert(Relation r, IndexTuple itup, Size freespace, GISTSTATE *giststate)
 			IndexTuple	newtup;
 			GISTInsertStack *item;
 			OffsetNumber downlinkoffnum;
+			OffsetNumber skiptupleoffnum;
 
-			downlinkoffnum = gistchoose(state.r, stack->page, itup, giststate);
+			downlinkoffnum = gistchoose(state.r, stack->page, itup, giststate, &skiptupleoffnum);
 			iid = PageGetItemId(stack->page, downlinkoffnum);
 			idxtuple = (IndexTuple) PageGetItem(stack->page, iid);
 			childblkno = ItemPointerGetBlockNumber(&(idxtuple->t_tid));
@@ -821,6 +822,27 @@ gistdoinsert(Relation r, IndexTuple itup, Size freespace, GISTSTATE *giststate)
 					}
 
 					continue;
+				}
+
+				if(skiptupleoffnum!=InvalidOffsetNumber)
+				{
+					elog(NOTICE,"updating siptuple skipnum %d downling %d",skiptupleoffnum,downlinkoffnum);
+					newtup = gistgetadjusted(state.r, (IndexTuple) PageGetItem(stack->page, PageGetItemId(stack->page, skiptupleoffnum)), itup, giststate);
+					if(newtup)
+					{
+						elog(NOTICE,"got newtup");
+						if (gistinserttuple(&state, stack, giststate, newtup,
+								downlinkoffnum)) {
+							elog(NOTICE,"skiptuple placement caused split");
+							if (stack->blkno != GIST_ROOT_BLKNO) {
+								UnlockReleaseBuffer(stack->buffer);
+								xlocked = false;
+								state.stack = stack = stack->parent;
+							}
+
+							continue;
+						}
+					}
 				}
 			}
 			LockBuffer(stack->buffer, GIST_UNLOCK);
