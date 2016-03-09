@@ -15,7 +15,7 @@ update queries set q = cube(array[l1,l2,l3],array[l1+0.1,l2+0.1,l3+0.1]);
 create table dataTable(c cube);
 create index idx on dataTable using gist(c);
 
-insert into dataTable(c) select cube(array[random(),random(),random()]) from generate_series(1,1e4,1);
+insert into dataTable(c) select cube(array[random(),random(),random()]) from generate_series(1,1e5,1);
 
 
 select id,(select count(*) from dataTable dt where dt.c<@q) from queries ;
