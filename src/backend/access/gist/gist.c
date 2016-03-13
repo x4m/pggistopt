@@ -450,7 +450,7 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 						//elog(NOTICE,"skipgroup placed");
 					}
 					elog(NOTICE,"All skipgroup placed on page %x",ptr->page);
-					gistcheckpage(rel,ptr->buffer);
+					gistcheckpage1(rel,ptr->buffer,giststate);
 				}
 				else
 				{
@@ -690,7 +690,7 @@ gistdoinsert(Relation r, IndexTuple itup, Size freespace, GISTSTATE *giststate)
 		{
 			LockBuffer(stack->buffer, GIST_SHARE);
 			//elog(NOTICE,"check gistdoinsert");
-			gistcheckpage(state.r, stack->buffer);
+			gistcheckpage1(state.r, stack->buffer,giststate);
 			//elog(NOTICE,"after gistdoinsert");
 		}
 
@@ -826,13 +826,17 @@ gistdoinsert(Relation r, IndexTuple itup, Size freespace, GISTSTATE *giststate)
 
 				if(skiptupleoffnum!=InvalidOffsetNumber)
 				{
+					IndexTuple skiptuple = (IndexTuple) PageGetItem(stack->page, PageGetItemId(stack->page, skiptupleoffnum));
 					elog(NOTICE,"updating siptuple skipnum %d downling %d",skiptupleoffnum,downlinkoffnum);
-					newtup = gistgetadjusted(state.r, (IndexTuple) PageGetItem(stack->page, PageGetItemId(stack->page, skiptupleoffnum)), itup, giststate);
+					newtup = gistgetadjusted(state.r, skiptuple, itup, giststate);
 					if(newtup)
 					{
+						GistTupleSetSkip(newtup);
+						GistTupleSetSkipCount(newtup,GistTupleGetSkipCount(skiptuple));
+
 						elog(NOTICE,"got newtup");
 						if (gistinserttuple(&state, stack, giststate, newtup,
-								downlinkoffnum)) {
+								skiptupleoffnum)) {
 							elog(NOTICE,"skiptuple placement caused split");
 							if (stack->blkno != GIST_ROOT_BLKNO) {
 								UnlockReleaseBuffer(stack->buffer);

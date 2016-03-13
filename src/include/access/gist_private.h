@@ -505,6 +505,7 @@ extern bool gistfitskiplayout(SplitedPageLayout *ptr);
 extern bool gistfitskiptuple(IndexTuple *itvec, int len);
 extern bool gistnospace(Page page, IndexTuple *itvec, int len, OffsetNumber todelete, Size freespace);
 extern void gistcheckpage(Relation rel, Buffer buf);
+extern void gistcheckpage1(Relation rel, Buffer buf, GISTSTATE *giststate);
 extern Buffer gistNewBuffer(Relation r);
 extern void gistfillbuffer(Page page, IndexTuple *itup, int len,
 			   OffsetNumber off);

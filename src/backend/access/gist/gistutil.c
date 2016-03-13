@@ -419,6 +419,7 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 		   GISTSTATE *giststate, OffsetNumber *skipoffnum)
 {
 	OffsetNumber result;
+	OffsetNumber seen_skipnum = InvalidOffsetNumber;
 	OffsetNumber maxoff;
 	OffsetNumber i;
 	float		best_penalty[INDEX_MAX_KEYS];
@@ -427,6 +428,7 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 	bool		isnull[INDEX_MAX_KEYS];
 	int			keep_current_best;
 	int			last_skipcount = 0;
+	int			seen_skipcount = 0;
 
 	Assert(!GistPageIsLeaf(p));
 
@@ -488,8 +490,8 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 		/*TODO: use skiptuple info for choose*/
 		if(GistTupleIsSkip(itup))
 		{
-			*skipoffnum = i;
-			last_skipcount = GistTupleGetSkipCount(itup);
+			seen_skipnum = i;
+			seen_skipcount = GistTupleGetSkipCount(itup);
 			continue;
 		}
 
@@ -525,6 +527,8 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 				 * remaining columns during subsequent loop iterations.
 				 */
 				result = i;
+				last_skipcount = seen_skipcount;
+				*skipoffnum = seen_skipnum;
 				best_penalty[j] = usize;
 
 				if (j < r->rd_att->natts - 1)
@@ -568,6 +572,8 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 			{
 				/* we choose to use the new tuple */
 				result = i;
+				last_skipcount = seen_skipcount;
+				*skipoffnum = seen_skipnum;
 				/* choose again if there are even more exactly-as-good ones */
 				keep_current_best = -1;
 			}
@@ -825,6 +831,63 @@ gistcheckpage(Relation rel, Buffer buf)
 						//raise(SIGTRAP);
 						elog(ERROR,"wrong place for skiptuple at %d skiptuple index %d skipcount %d page %x",o,i,GistTupleGetSkipCount(itup),page);
 					}
+				}
+			}
+		}
+}
+
+/*
+ * Verify that a freshly-read page looks sane and check all the skiptuples.
+ */
+void
+gistcheckpage1(Relation rel, Buffer buf, GISTSTATE *giststate)
+{
+	Page		page = BufferGetPage(buf);
+	int maxoff,i,o;
+
+	/*
+	 * ReadBuffer verifies that every newly-read page passes
+	 * PageHeaderIsValid, which means it either contains a reasonably sane
+	 * page header or is all-zero.  We have to defend against the all-zero
+	 * case, however.
+	 */
+	if (PageIsNew(page))
+		ereport(ERROR,
+				(errcode(ERRCODE_INDEX_CORRUPTED),
+			 errmsg("index \"%s\" contains unexpected zero page at block %u",
+					RelationGetRelationName(rel),
+					BufferGetBlockNumber(buf)),
+				 errhint("Please REINDEX it.")));
+
+	/*
+	 * Additionally check that the special area looks sane.
+	 */
+	if (PageGetSpecialSize(page) != MAXALIGN(sizeof(GISTPageOpaqueData)))
+		ereport(ERROR,
+				(errcode(ERRCODE_INDEX_CORRUPTED),
+				 errmsg("index \"%s\" contains corrupted page at block %u",
+						RelationGetRelationName(rel),
+						BufferGetBlockNumber(buf)),
+				 errhint("Please REINDEX it.")));
+
+	maxoff = PageGetMaxOffsetNumber(page);
+
+		for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
+		{
+			IndexTuple itup = (IndexTuple) PageGetItem(page, PageGetItemId(page, i));
+			if (GistTupleIsSkip(itup))
+			{
+				for (o = i+1; o <= i+GistTupleGetSkipCount(itup); o = OffsetNumberNext(o))
+				{
+					IndexTuple otup = (IndexTuple) PageGetItem(page, PageGetItemId(page, o));
+					if(GistTupleIsSkip(otup))
+					{
+						//raise(SIGTRAP);
+						elog(ERROR,"wrong place for skiptuple at %d skiptuple index %d skipcount %d page %x",o,i,GistTupleGetSkipCount(itup),page);
+					}
+
+					if(gistgetadjusted(rel, itup, otup,  giststate))
+						elog(ERROR,"Key at %d do not fit in skiptuple index %d skipcount %d page %x",o,i,GistTupleGetSkipCount(itup),page);
 				}
 			}
 		}

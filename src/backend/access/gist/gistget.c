@@ -175,7 +175,10 @@ gistindex_keytest(IndexScanDesc scan,
 			if (key->sk_flags & SK_SEARCHNULL)
 			{
 				if (GistPageIsLeaf(page) && !isNull)
+				{
+					elog(NOTICE,"Null exit on leaf page");
 					return false;
+				}
 			}
 			else
 			{
@@ -383,6 +386,8 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 	 */
 	so->curPageLSN = PageGetLSN(page);
 
+	gistcheckpage1(r,buffer,giststate);
+
 	/*
 	 * check all tuples on page
 	 */
@@ -420,12 +425,14 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 		/* Ignore tuple if it doesn't match */
 		if (!match)
 		{
-			if(skip_tuple)//we found unmatching skiptuple
+			if(skip_tuple && !GistPageIsLeaf(page))//we found unmatching skiptuple
 			{
 				int skip_count = GistTupleGetSkipCount(it);
 				int init_skip_count = GistTupleGetSkipCount(it);
-
-				//elog(NOTICE, "Skipping %d records", skip_count);
+				IndexTuple originSkiptuple = it;
+/*
+				if(!GistPageIsLeaf(page))
+					elog(NOTICE, "Skipping on internal page %d records", skip_count);*/
 				while(skip_count>0)
 				{
 					i = OffsetNumberNext(i);
@@ -439,7 +446,11 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 						match = gistindex_keytest(scan, it, page, i,
 														  &recheck, &recheck_distances);
 						if(match)
-							elog(NOTICE,"Skipping tuple we shouldn't; skipcount %d  initial %d",skip_count,init_skip_count);
+						{
+							if(gistgetadjusted(r,originSkiptuple,it,giststate))
+								elog(NOTICE,"Skiptuple key is actually mismatched");
+							elog(NOTICE,"Skipping tuple we shouldn't; skipcount %d  initial %d isLeaf %d",skip_count,init_skip_count,GistPageIsLeaf(page));
+						}
 
 
 					}
