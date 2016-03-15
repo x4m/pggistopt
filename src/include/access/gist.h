@@ -16,6 +16,7 @@
 #ifndef GIST_H
 #define GIST_H
 
+#include "access/itup.h"
 #include "access/xlog.h"
 #include "access/xlogdefs.h"
 #include "storage/block.h"
@@ -125,12 +126,13 @@ typedef struct GISTENTRY
 	Page		page;
 	OffsetNumber offset;
 	bool		leafkey;
+	bool		leafpage;
 } GISTENTRY;
 
 #define GistPageGetOpaque(page) ( (GISTPageOpaque) PageGetSpecialPointer(page) )
 
 #define GistPageIsLeaf(page)	( GistPageGetOpaque(page)->flags & F_LEAF)
-#define GIST_LEAF(entry) (GistPageIsLeaf((entry)->page))
+#define GIST_LEAF(entry) ((entry)->leafpage)
 
 #define GistPageIsDeleted(page) ( GistPageGetOpaque(page)->flags & F_DELETED)
 #define GistPageSetDeleted(page)	( GistPageGetOpaque(page)->flags |= F_DELETED)
@@ -151,6 +153,13 @@ typedef struct GISTENTRY
 #define GistPageGetNSN(page) ( PageXLogRecPtrGet(GistPageGetOpaque(page)->nsn))
 #define GistPageSetNSN(page, val) ( PageXLogRecPtrSet(GistPageGetOpaque(page)->nsn, val))
 
+#define SKIPTUPLE_TRESHOLD	0x20
+#define TUPLE_IS_SKIP		0x1
+#define  GistTupleIsSkip(itup)	( itup->t_skipflags == TUPLE_IS_SKIP )
+#define  GistTupleGetSkipCount(itup)	( itup->t_skipcount )
+#define  GistTupleSetSkipCount(itup,count)	do{ itup->t_skipcount = count;} while(0)
+#define  GistTupleSetSkip(itup)	do{ itup->t_skipflags = TUPLE_IS_SKIP;} while(0)
+
 /*
  * Vector of GISTENTRY structs; user-defined methods union and picksplit
  * take it as one of their arguments
@@ -168,6 +177,7 @@ typedef struct
  */
 #define gistentryinit(e, k, r, pg, o, l) \
 	do { (e).key = (k); (e).rel = (r); (e).page = (pg); \
-		 (e).offset = (o); (e).leafkey = (l); } while (0)
+		 (e).offset = (o); (e).leafkey = (l); \
+		 (e).leafpage = (pg) && GistPageIsLeaf(pg); } while (0)
 
 #endif   /* GIST_H */

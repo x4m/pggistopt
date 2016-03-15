@@ -410,6 +410,7 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 
 		it = (IndexTuple) PageGetItem(page, iid);
 		skip_tuple = GistTupleIsSkip(it);
+
 		/*
 		 * Must call gistindex_keytest in tempCxt, and clean up any leftover
 		 * junk afterward.

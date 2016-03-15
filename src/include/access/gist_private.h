@@ -324,14 +324,6 @@ typedef struct
 #define  GistTupleIsInvalid(itup)	( ItemPointerGetOffsetNumber( &((itup)->t_tid) ) == TUPLE_IS_INVALID )
 #define  GistTupleSetValid(itup)	ItemPointerSetOffsetNumber( &((itup)->t_tid), TUPLE_IS_VALID )
 
-#define SKIPTUPLE_TRESHOLD	0x20
-#define TUPLE_IS_SKIP		0x1
-#define  GistTupleIsSkip(itup)	( itup->t_skipflags == TUPLE_IS_SKIP )
-#define  GistTupleGetSkipCount(itup)	( itup->t_skipcount )
-#define  GistTupleSetSkipCount(itup,count)	do{ itup->t_skipcount = count;} while(0)
-#define  GistTupleSetSkip(itup)	do{ itup->t_skipflags = TUPLE_IS_SKIP;} while(0)
-
-
 
 /*
  * A buffer attached to an internal node, used when building an index in

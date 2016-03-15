@@ -622,8 +622,15 @@ gistdentryinit(GISTSTATE *giststate, int nkey, GISTENTRY *e,
 											  PointerGetDatum(e)));
 		/* decompressFn may just return the given pointer */
 		if (dep != e)
+		{
 			gistentryinit(*e, dep->key, dep->rel, dep->page, dep->offset,
 						  dep->leafkey);
+		}
+
+		if (e->page && GistTupleIsSkip(((IndexTuple)PageGetItem(e->page, PageGetItemId(e->page, e->offset)))))
+		{
+			e->leafpage = false;
+		}
 	}
 	else
 		gistentryinit(*e, (Datum) 0, r, pg, o, l);
