@@ -390,7 +390,7 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 		 * Fill all pages. All the pages are new, ie. freshly allocated empty
 		 * pages, or a temporary copy of the old page.
 		 */
-		elog(NOTICE,"filling pages after split");
+		//elog(NOTICE,"filling pages after split");
 		for (ptr = dist; ptr; ptr = ptr->next)
 		{
 			char	*data = (char *) (ptr->list);
@@ -403,7 +403,7 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 				skiplist = gistSplit(rel, page, skipvector, ptr->block.num, giststate,gistfitskiptuple);
 				if(gistfitskiplayout(skiplist))
 				{
-					elog(NOTICE,"placing skipgroups");
+					//elog(NOTICE,"placing skipgroups");
 					//int throghoutIndex = FirstOffsetNumber;
 					fallback = false;
 
@@ -449,12 +449,12 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 						}
 						//elog(NOTICE,"skipgroup placed");
 					}
-					elog(NOTICE,"All skipgroup placed on page %x",ptr->page);
+					//elog(NOTICE,"All skipgroup placed on page %x",ptr->page);
 					gistcheckpage1(rel,ptr->buffer,giststate);
 				}
 				else
 				{
-					elog(NOTICE,"requesting fallback size %d preskip size %d",skiplist->lenlist,ptr->lenlist);
+					//elog(NOTICE,"requesting fallback size %d preskip size %d",skiplist->lenlist,ptr->lenlist);
 				}
 				pfree(skipvector);
 			}
@@ -827,17 +827,17 @@ gistdoinsert(Relation r, IndexTuple itup, Size freespace, GISTSTATE *giststate)
 				if(skiptupleoffnum!=InvalidOffsetNumber)
 				{
 					IndexTuple skiptuple = (IndexTuple) PageGetItem(stack->page, PageGetItemId(stack->page, skiptupleoffnum));
-					elog(NOTICE,"updating siptuple skipnum %d downling %d",skiptupleoffnum,downlinkoffnum);
+					//elog(NOTICE,"updating siptuple skipnum %d downling %d",skiptupleoffnum,downlinkoffnum);
 					newtup = gistgetadjusted(state.r, skiptuple, itup, giststate);
 					if(newtup)
 					{
 						GistTupleSetSkip(newtup);
 						GistTupleSetSkipCount(newtup,GistTupleGetSkipCount(skiptuple));
 
-						elog(NOTICE,"got newtup");
+						//elog(NOTICE,"got newtup");
 						if (gistinserttuple(&state, stack, giststate, newtup,
 								skiptupleoffnum)) {
-							elog(NOTICE,"skiptuple placement caused split");
+							//elog(NOTICE,"skiptuple placement caused split");
 							if (stack->blkno != GIST_ROOT_BLKNO) {
 								UnlockReleaseBuffer(stack->buffer);
 								xlocked = false;

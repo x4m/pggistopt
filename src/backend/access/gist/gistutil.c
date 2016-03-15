@@ -822,7 +822,7 @@ gistcheckpage(Relation rel, Buffer buf)
 						RelationGetRelationName(rel),
 						BufferGetBlockNumber(buf)),
 				 errhint("Please REINDEX it.")));
-
+#ifdef SKIPTUPLE_DEBUG
 	maxoff = PageGetMaxOffsetNumber(page);
 
 		for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
@@ -841,6 +841,7 @@ gistcheckpage(Relation rel, Buffer buf)
 				}
 			}
 		}
+#endif
 }
 
 /*
@@ -876,7 +877,7 @@ gistcheckpage1(Relation rel, Buffer buf, GISTSTATE *giststate)
 						RelationGetRelationName(rel),
 						BufferGetBlockNumber(buf)),
 				 errhint("Please REINDEX it.")));
-
+#ifdef SKIPTUPLE_DEBUG
 	maxoff = PageGetMaxOffsetNumber(page);
 
 		for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
@@ -898,6 +899,7 @@ gistcheckpage1(Relation rel, Buffer buf, GISTSTATE *giststate)
 				}
 			}
 		}
+#endif
 }
 
 
