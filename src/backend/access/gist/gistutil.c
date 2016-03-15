@@ -225,7 +225,7 @@ gistMakeUnionItVec(GISTSTATE *giststate, IndexTuple *itvec, int len,
 						   evec->vector + evec->n,
 						   datum,
 						   NULL, NULL, (OffsetNumber) 0,
-						   FALSE, IsNull);
+						   FALSE, IsNull, false);
 			evec->n++;
 		}
 
@@ -349,7 +349,7 @@ gistDeCompressAtt(GISTSTATE *giststate, Relation r, IndexTuple tuple, Page p,
 		datum = index_getattr(tuple, i + 1, giststate->tupdesc, &isnull[i]);
 		gistdentryinit(giststate, i, &attdata[i],
 					   datum, r, p, o,
-					   FALSE, isnull[i]);
+					   FALSE, isnull[i], false);
 	}
 }
 
@@ -510,7 +510,7 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 			/* Compute penalty for this column. */
 			datum = index_getattr(itup, j + 1, giststate->tupdesc, &IsNull);
 			gistdentryinit(giststate, j, &entry, datum, r, p, i,
-						   FALSE, IsNull);
+						   FALSE, IsNull, false);
 			usize = gistpenalty(giststate, j, &entry, IsNull,
 								&identry[j], isnull[j]);
 			if (usize > 0)
@@ -609,7 +609,7 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 void
 gistdentryinit(GISTSTATE *giststate, int nkey, GISTENTRY *e,
 			   Datum k, Relation r, Page pg, OffsetNumber o,
-			   bool l, bool isNull)
+			   bool l, bool isNull, bool skipTuple)
 {
 	if (!isNull)
 	{
@@ -627,7 +627,7 @@ gistdentryinit(GISTSTATE *giststate, int nkey, GISTENTRY *e,
 						  dep->leafkey);
 		}
 
-		if (e->page && GistTupleIsSkip(((IndexTuple)PageGetItem(e->page, PageGetItemId(e->page, e->offset)))))
+		if (skipTuple)
 		{
 			e->leafpage = false;
 		}
