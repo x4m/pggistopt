@@ -429,13 +429,14 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 			if(skip_tuple)//we found unmatching skiptuple
 			{
 				int skip_count = GistTupleGetSkipCount(it);
-				int init_skip_count = GistTupleGetSkipCount(it);
-				IndexTuple originSkiptuple = it;
 
 				while(skip_count>0)
 				{
 					i = OffsetNumberNext(i);
 #ifdef SKIPTUPLE_DEBUG
+					{
+						int init_skip_count = GistTupleGetSkipCount(it);
+						IndexTuple originSkiptuple = it;
 					if(i<=maxoff)
 					{
 						iid = PageGetItemId(page, i);
@@ -452,6 +453,7 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 						}
 
 
+					}
 					}
 #endif
 

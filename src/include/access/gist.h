@@ -153,7 +153,7 @@ typedef struct GISTENTRY
 #define GistPageGetNSN(page) ( PageXLogRecPtrGet(GistPageGetOpaque(page)->nsn))
 #define GistPageSetNSN(page, val) ( PageXLogRecPtrSet(GistPageGetOpaque(page)->nsn, val))
 
-#define SKIPTUPLE_TRESHOLD	0x20
+#define SKIPTUPLE_TRESHOLD	0x80
 #define TUPLE_IS_SKIP		0x1
 #define  GistTupleIsSkip(itup)	( itup->t_skipflags == TUPLE_IS_SKIP )
 #define  GistTupleGetSkipCount(itup)	( itup->t_skipcount )
