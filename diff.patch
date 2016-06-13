@@ -1,0 +1,1054 @@
+From 8afe3a1e300eba165817a1ade2fbc48af5de3f86 Mon Sep 17 00:00:00 2001
+From: x4m <amborodin@acm.org>
+Date: Mon, 13 Jun 2016 13:43:35 +0500
+Subject: [PATCH] odd way to transfer diff
+
+---
+ diff.txt | 1035 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 1035 insertions(+)
+ create mode 100644 diff.txt
+
+diff --git a/diff.txt b/diff.txt
+new file mode 100644
+index 0000000..a691033
+--- /dev/null
++++ b/diff.txt
+@@ -0,0 +1,1035 @@
++[1mdiff --git a/clean.sh b/clean.sh[m
++[1mnew file mode 100755[m
++[1mindex 0000000..614d99f[m
++[1m--- /dev/null[m
++[1m+++ b/clean.sh[m
++[36m@@ -0,0 +1,3 @@[m
++[32m+[m[32m#!/bin/sh[m
++[32m+[m[32mrm -r /home/x4m/pgsql/DemoDir[m
++[32m+[m[32m/home/x4m/project/bin/initdb /home/x4m/pgsql/DemoDir[m
++[1mdiff --git a/src/backend/access/common/indextuple.c b/src/backend/access/common/indextuple.c[m
++[1mindex 274a6c2..9716610 100644[m
++[1m--- a/src/backend/access/common/indextuple.c[m
++[1m+++ b/src/backend/access/common/indextuple.c[m
++[36m@@ -182,6 +182,8 @@[m [mindex_form_tuple(TupleDesc tupleDescriptor,[m
++ 	 * initialize metadata[m
++ 	 */[m
++ 	tuple->t_info = infomask;[m
++[32m+[m	[32mtuple->t_skipflags = 0;[m
++[32m+[m	[32mtuple->t_skipcount = 0;[m
++ 	return tuple;[m
++ }[m
++ [m
++[1mdiff --git a/src/backend/access/gist/gist.c b/src/backend/access/gist/gist.c[m
++[1mindex 996363c..a0899f7 100644[m
++[1m--- a/src/backend/access/gist/gist.c[m
++[1m+++ b/src/backend/access/gist/gist.c[m
++[36m@@ -283,7 +283,7 @@[m [mgistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,[m
++ 				memmove(itvec + pos, itvec + pos + 1, sizeof(IndexTuple) * (tlen - pos));[m
++ 		}[m
++ 		itvec = gistjoinvector(itvec, &tlen, itup, ntup);[m
++[31m-		dist = gistSplit(rel, page, itvec, tlen, giststate);[m
++[32m+[m		[32mdist = gistSplit(rel, page, itvec, tlen, giststate,gistfitpage);[m
++ [m
++ 		/*[m
++ 		 * Check that split didn't produce too many pages.[m
++[36m@@ -390,25 +390,93 @@[m [mgistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,[m
++ 		 * Fill all pages. All the pages are new, ie. freshly allocated empty[m
++ 		 * pages, or a temporary copy of the old page.[m
++ 		 */[m
++[32m+[m		[32m//elog(NOTICE,"filling pages after split");[m
++ 		for (ptr = dist; ptr; ptr = ptr->next)[m
++ 		{[m
++[31m-			char	   *data = (char *) (ptr->list);[m
++[32m+[m			[32mchar	*data = (char *) (ptr->list);[m
++[32m+[m			[32mbool 	fallback = true;[m
++ [m
++[31m-			for (i = 0; i < ptr->block.num; i++)[m
++[32m+[m			[32mif(ptr->block.num>SKIPTUPLE_TRESHOLD)[m
++ 			{[m
++[31m-				IndexTuple	thistup = (IndexTuple) data;[m
++[32m+[m				[32mIndexTuple* skipvector = gistextractsplitpagelayout(ptr);[m
++[32m+[m				[32mSplitedPageLayout* skiplist,*sptr;[m
++[32m+[m				[32mskiplist = gistSplit(rel, page, skipvector, ptr->block.num, giststate,gistfitskiptuple);[m
++[32m+[m				[32mif(gistfitskiplayout(skiplist))[m
++[32m+[m				[32m{[m
++[32m+[m					[32m//elog(NOTICE,"placing skipgroups");[m
++[32m+[m					[32m//int throghoutIndex = FirstOffsetNumber;[m
++[32m+[m					[32mfallback = false;[m
++[32m+[m
++[32m+[m					[32mfor (sptr = skiplist; sptr; sptr = sptr->next) {[m
++[32m+[m						[32mGistTupleSetSkip(sptr->itup);[m
++[32m+[m						[32mGistTupleSetSkipCount(sptr->itup, sptr->block.num);[m
++[32m+[m						[32mif (PageAddItem(ptr->page, sptr->itup,[m
++[32m+[m								[32mIndexTupleSize(sptr->itup), InvalidOffsetNumber,[m
++[32m+[m								[32mfalse, false) == InvalidOffsetNumber)[m
++[32m+[m							[32melog(ERROR,[m
++[32m+[m									[32m"failed to add skip item to index page in \"%s\" tuple size %d thruidx is %d",[m
++[32m+[m									[32mRelationGetRelationName(rel),[m
++[32m+[m									[32mIndexTupleSize(sptr->itup), InvalidOffsetNumber);[m
++[32m+[m						[32m//elog(NOTICE, "Skiptuple added thdx %d skipcount %d", InvalidOffsetNumber-1,sptr->block.num);[m
++[32m+[m
++[32m+[m						[32mchar *sdata = (char *) (sptr->list);[m
++[32m+[m						[32mfor (i = 0; i < sptr->block.num; i++)[m
++[32m+[m						[32m{[m
++[32m+[m							[32mIndexTuple thistup = (IndexTuple) sdata;[m
++[32m+[m							[32mif(GistTupleIsSkip(thistup))[m
++[32m+[m								[32melog(ERROR,"Skip tuple mischief");[m
++[32m+[m
++[32m+[m							[32mif (PageAddItem(ptr->page, (Item) sdata,[m
++[32m+[m									[32mIndexTupleSize(thistup), InvalidOffsetNumber,[m
++[32m+[m									[32mfalse, false) == InvalidOffsetNumber)[m
++[32m+[m							[32m{[m
++[32m+[m								[32melog(NOTICE,"fallback not requested size %d preskip size %d",skiplist->lenlist,ptr->lenlist);[m
++[32m+[m								[32melog(ERROR,[m
++[32m+[m										[32m"failed to add item to index page in \"%s\"",[m
++[32m+[m										[32mRelationGetRelationName(rel));[m
++[32m+[m							[32m}[m
++[32m+[m
++[32m+[m							[32m/*[m
++[32m+[m							[32m * If this is the first inserted/updated tuple, let the caller[m
++[32m+[m							[32m * know which page it landed on.[m
++[32m+[m							[32m */[m
++[32m+[m							[32mif (newblkno[m
++[32m+[m									[32m&& ItemPointerEquals(&thistup->t_tid,[m
++[32m+[m											[32m&(*itup)->t_tid))[m
++[32m+[m								[32m*newblkno = ptr->block.blkno;[m
++[32m+[m
++[32m+[m							[32msdata += IndexTupleSize(thistup);[m
++[32m+[m						[32m}[m
++[32m+[m						[32m//elog(NOTICE,"skipgroup placed");[m
++[32m+[m					[32m}[m
++[32m+[m					[32m//elog(NOTICE,"All skipgroup placed on page %x",ptr->page);[m
++[32m+[m					[32mgistcheckpage1(rel,ptr->buffer,giststate);[m
++[32m+[m				[32m}[m
++[32m+[m				[32melse[m
++[32m+[m				[32m{[m
++[32m+[m					[32m//elog(NOTICE,"requesting fallback size %d preskip size %d",skiplist->lenlist,ptr->lenlist);[m
++[32m+[m				[32m}[m
++[32m+[m				[32mpfree(skipvector);[m
++[32m+[m			[32m}[m
++[32m+[m			[32mif(fallback)[m
++[32m+[m			[32m{[m
++[32m+[m				[32m//elog(NOTICE, "fallback activated");[m
++[32m+[m				[32mfor (i = 0; i < ptr->block.num; i++)[m
++[32m+[m				[32m{[m
++[32m+[m					[32mIndexTuple	thistup = (IndexTuple) data;[m
++ [m
++[31m-				if (PageAddItem(ptr->page, (Item) data, IndexTupleSize(thistup), i + FirstOffsetNumber, false, false) == InvalidOffsetNumber)[m
++[31m-					elog(ERROR, "failed to add item to index page in \"%s\"", RelationGetRelationName(rel));[m
++[32m+[m					[32mif (PageAddItem(ptr->page, (Item) data, IndexTupleSize(thistup), i + FirstOffsetNumber, false, false) == InvalidOffsetNumber)[m
++[32m+[m						[32melog(ERROR, "failed to add fallback item to index page in \"%s\"", RelationGetRelationName(rel));[m
++ [m
++[31m-				/*[m
++[31m-				 * If this is the first inserted/updated tuple, let the caller[m
++[31m-				 * know which page it landed on.[m
++[31m-				 */[m
++[31m-				if (newblkno && ItemPointerEquals(&thistup->t_tid, &(*itup)->t_tid))[m
++[31m-					*newblkno = ptr->block.blkno;[m
++[32m+[m					[32m/*[m
++[32m+[m					[32m * If this is the first inserted/updated tuple, let the caller[m
++[32m+[m					[32m * know which page it landed on.[m
++[32m+[m					[32m */[m
++[32m+[m					[32mif (newblkno && ItemPointerEquals(&thistup->t_tid, &(*itup)->t_tid))[m
++[32m+[m						[32m*newblkno = ptr->block.blkno;[m
++ [m
++[31m-				data += IndexTupleSize(thistup);[m
++[32m+[m					[32mdata += IndexTupleSize(thistup);[m
++[32m+[m				[32m}[m
++ 			}[m
++ [m
++ 			/* Set up rightlinks */[m
++[36m@@ -438,6 +506,7 @@[m [mgistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,[m
++ 			 */[m
++ 			GistPageSetNSN(ptr->page, oldnsn);[m
++ 		}[m
++[32m+[m		[32m//elog(NOTICE, "split write finished");[m
++ [m
++ 		/*[m
++ 		 * gistXLogSplit() needs to WAL log a lot of pages, prepare WAL[m
++[36m@@ -446,6 +515,7 @@[m [mgistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,[m
++ 		 */[m
++ 		if (RelationNeedsWAL(rel))[m
++ 			XLogEnsureRecordSpace(npage, 1 + npage * 2);[m
++[32m+[m		[32m//elog(NOTICE, "XLogEnsureRecordSpace done");[m
++ [m
++ 		START_CRIT_SECTION();[m
++ [m
++[36m@@ -457,6 +527,7 @@[m [mgistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,[m
++ 			MarkBufferDirty(ptr->buffer);[m
++ 		if (BufferIsValid(leftchildbuf))[m
++ 			MarkBufferDirty(leftchildbuf);[m
++[32m+[m		[32m//elog(NOTICE, "MarkBufferDirty done");[m
++ [m
++ 		/*[m
++ 		 * The first page in the chain was a temporary working copy meant to[m
++[36m@@ -465,6 +536,8 @@[m [mgistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,[m
++ 		PageRestoreTempPage(dist->page, BufferGetPage(dist->buffer));[m
++ 		dist->page = BufferGetPage(dist->buffer);[m
++ [m
++[32m+[m		[32m//elog(NOTICE, "PageRestoreTempPage done");[m
++[32m+[m
++ 		/* Write the WAL record */[m
++ 		if (RelationNeedsWAL(rel))[m
++ 			recptr = gistXLogSplit(rel->rd_node, blkno, is_leaf,[m
++[36m@@ -473,6 +546,8 @@[m [mgistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,[m
++ 		else[m
++ 			recptr = gistGetFakeLSN(rel);[m
++ [m
++[32m+[m		[32m//elog(NOTICE, "RelationNeedsWAL done");[m
++[32m+[m
++ 		for (ptr = dist; ptr; ptr = ptr->next)[m
++ 		{[m
++ 			PageSetLSN(ptr->page, recptr);[m
++[36m@@ -490,6 +565,8 @@[m [mgistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,[m
++ 			for (ptr = dist->next; ptr; ptr = ptr->next)[m
++ 				UnlockReleaseBuffer(ptr->buffer);[m
++ 		}[m
++[32m+[m
++[32m+[m		[32m//elog(NOTICE, "Split done");[m
++ 	}[m
++ 	else[m
++ 	{[m
++[36m@@ -505,7 +582,7 @@[m [mgistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,[m
++ 		 */[m
++ 		if (OffsetNumberIsValid(oldoffnum))[m
++ 			PageIndexTupleDelete(page, oldoffnum);[m
++[31m-		gistfillbuffer(page, itup, ntup, InvalidOffsetNumber);[m
++[32m+[m		[32mgistfillbuffer(page, itup, ntup, oldoffnum);[m
++ [m
++ 		MarkBufferDirty(buffer);[m
++ [m
++[36m@@ -564,6 +641,7 @@[m [mgistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,[m
++ [m
++ 	END_CRIT_SECTION();[m
++ [m
++[32m+[m
++ 	return is_split;[m
++ }[m
++ [m
++[36m@@ -611,7 +689,9 @@[m [mgistdoinsert(Relation r, IndexTuple itup, Size freespace, GISTSTATE *giststate)[m
++ 		if (!xlocked)[m
++ 		{[m
++ 			LockBuffer(stack->buffer, GIST_SHARE);[m
++[31m-			gistcheckpage(state.r, stack->buffer);[m
++[32m+[m			[32m//elog(NOTICE,"check gistdoinsert");[m
++[32m+[m			[32mgistcheckpage1(state.r, stack->buffer,giststate);[m
++[32m+[m			[32m//elog(NOTICE,"after gistdoinsert");[m
++ 		}[m
++ [m
++ 		stack->page = (Page) BufferGetPage(stack->buffer);[m
++[36m@@ -667,8 +747,9 @@[m [mgistdoinsert(Relation r, IndexTuple itup, Size freespace, GISTSTATE *giststate)[m
++ 			IndexTuple	newtup;[m
++ 			GISTInsertStack *item;[m
++ 			OffsetNumber downlinkoffnum;[m
++[32m+[m			[32mOffsetNumber skiptupleoffnum;[m
++ [m
++[31m-			downlinkoffnum = gistchoose(state.r, stack->page, itup, giststate);[m
++[32m+[m			[32mdownlinkoffnum = gistchoose(state.r, stack->page, itup, giststate, &skiptupleoffnum);[m
++ 			iid = PageGetItemId(stack->page, downlinkoffnum);[m
++ 			idxtuple = (IndexTuple) PageGetItem(stack->page, iid);[m
++ 			childblkno = ItemPointerGetBlockNumber(&(idxtuple->t_tid));[m
++[36m@@ -690,6 +771,8 @@[m [mgistdoinsert(Relation r, IndexTuple itup, Size freespace, GISTSTATE *giststate)[m
++ 			newtup = gistgetadjusted(state.r, idxtuple, itup, giststate);[m
++ 			if (newtup)[m
++ 			{[m
++[32m+[m				[32mif(GistTupleIsSkip(newtup))[m
++[32m+[m					[32melog(ERROR,"Adjusted to skiptuple");[m
++ 				/*[m
++ 				 * Swap shared lock for an exclusive one. Beware, the page may[m
++ 				 * change while we unlock/lock the page...[m
++[36m@@ -727,14 +810,44 @@[m [mgistdoinsert(Relation r, IndexTuple itup, Size freespace, GISTSTATE *giststate)[m
++ 					 * child pages, so we just need to retry from the root[m
++ 					 * page.[m
++ 					 */[m
++[32m+[m[32m/*[m
++[32m+[m					[32melog(NOTICE,"check after insert split");[m
++[32m+[m					[32mgistcheckpage(state.r, stack->buffer);[m
++[32m+[m					[32melog(NOTICE,"done after insert split");*/[m
++ 					if (stack->blkno != GIST_ROOT_BLKNO)[m
++ 					{[m
++ 						UnlockReleaseBuffer(stack->buffer);[m
++ 						xlocked = false;[m
++ 						state.stack = stack = stack->parent;[m
++ 					}[m
++[32m+[m
++ 					continue;[m
++ 				}[m
++[32m+[m
++[32m+[m				[32mif(skiptupleoffnum!=InvalidOffsetNumber)[m
++[32m+[m				[32m{[m
++[32m+[m					[32mIndexTuple skiptuple = (IndexTuple) PageGetItem(stack->page, PageGetItemId(stack->page, skiptupleoffnum));[m
++[32m+[m					[32m//elog(NOTICE,"updating siptuple skipnum %d downling %d",skiptupleoffnum,downlinkoffnum);[m
++[32m+[m					[32mnewtup = gistgetadjusted(state.r, skiptuple, itup, giststate);[m
++[32m+[m					[32mif(newtup)[m
++[32m+[m					[32m{[m
++[32m+[m						[32mGistTupleSetSkip(newtup);[m
++[32m+[m						[32mGistTupleSetSkipCount(newtup,GistTupleGetSkipCount(skiptuple));[m
++[32m+[m
++[32m+[m						[32m//elog(NOTICE,"got newtup");[m
++[32m+[m						[32mif (gistinserttuple(&state, stack, giststate, newtup,[m
++[32m+[m								[32mskiptupleoffnum)) {[m
++[32m+[m							[32m//elog(NOTICE,"skiptuple placement caused split");[m
++[32m+[m							[32mif (stack->blkno != GIST_ROOT_BLKNO) {[m
++[32m+[m								[32mUnlockReleaseBuffer(stack->buffer);[m
++[32m+[m								[32mxlocked = false;[m
++[32m+[m								[32mstate.stack = stack = stack->parent;[m
++[32m+[m							[32m}[m
++[32m+[m
++[32m+[m							[32mcontinue;[m
++[32m+[m						[32m}[m
++[32m+[m					[32m}[m
++[32m+[m				[32m}[m
++ 			}[m
++ 			LockBuffer(stack->buffer, GIST_UNLOCK);[m
++ 			xlocked = false;[m
++[36m@@ -745,6 +858,8 @@[m [mgistdoinsert(Relation r, IndexTuple itup, Size freespace, GISTSTATE *giststate)[m
++ 			item->parent = stack;[m
++ 			item->downlinkoffnum = downlinkoffnum;[m
++ 			state.stack = stack = item;[m
++[32m+[m
++[32m+[m
++ 		}[m
++ 		else[m
++ 		{[m
++[36m@@ -852,6 +967,7 @@[m [mgistFindPath(Relation r, BlockNumber child, OffsetNumber *downlinkoffnum)[m
++ [m
++ 		buffer = ReadBuffer(r, top->blkno);[m
++ 		LockBuffer(buffer, GIST_SHARE);[m
++[32m+[m		[32m//elog(NOTICE,"check gistFindPath");[m
++ 		gistcheckpage(r, buffer);[m
++ 		page = (Page) BufferGetPage(buffer);[m
++ [m
++[36m@@ -902,6 +1018,8 @@[m [mgistFindPath(Relation r, BlockNumber child, OffsetNumber *downlinkoffnum)[m
++ 		{[m
++ 			iid = PageGetItemId(page, i);[m
++ 			idxtuple = (IndexTuple) PageGetItem(page, iid);[m
++[32m+[m			[32mif(GistTupleIsSkip(idxtuple))[m
++[32m+[m				[32mcontinue;[m
++ 			blkno = ItemPointerGetBlockNumber(&(idxtuple->t_tid));[m
++ 			if (blkno == child)[m
++ 			{[m
++[36m@@ -940,6 +1058,7 @@[m [mgistFindCorrectParent(Relation r, GISTInsertStack *child)[m
++ {[m
++ 	GISTInsertStack *parent = child->parent;[m
++ [m
++[32m+[m	[32m//elog(NOTICE,"check gistFindCorrectParetn1");[m
++ 	gistcheckpage(r, parent->buffer);[m
++ 	parent->page = (Page) BufferGetPage(parent->buffer);[m
++ [m
++[36m@@ -961,6 +1080,8 @@[m [mgistFindCorrectParent(Relation r, GISTInsertStack *child)[m
++ 			{[m
++ 				iid = PageGetItemId(parent->page, i);[m
++ 				idxtuple = (IndexTuple) PageGetItem(parent->page, iid);[m
++[32m+[m				[32mif(GistTupleIsSkip(idxtuple))[m
++[32m+[m					[32mcontinue;[m
++ 				if (ItemPointerGetBlockNumber(&(idxtuple->t_tid)) == child->blkno)[m
++ 				{[m
++ 					/* yes!!, found */[m
++[36m@@ -981,6 +1102,7 @@[m [mgistFindCorrectParent(Relation r, GISTInsertStack *child)[m
++ 			}[m
++ 			parent->buffer = ReadBuffer(r, parent->blkno);[m
++ 			LockBuffer(parent->buffer, GIST_EXCLUSIVE);[m
++[32m+[m			[32m//elog(NOTICE,"check gistFindCorrectParent2");[m
++ 			gistcheckpage(r, parent->buffer);[m
++ 			parent->page = (Page) BufferGetPage(parent->buffer);[m
++ 		}[m
++[36m@@ -1039,6 +1161,9 @@[m [mgistformdownlink(Relation rel, Buffer buf, GISTSTATE *giststate,[m
++ 		IndexTuple	ituple = (IndexTuple)[m
++ 		PageGetItem(page, PageGetItemId(page, offset));[m
++ [m
++[32m+[m		[32mif(GistTupleIsSkip(ituple))[m
++[32m+[m			[32mcontinue;[m
++[32m+[m
++ 		if (downlink == NULL)[m
++ 			downlink = CopyIndexTuple(ituple);[m
++ 		else[m
++[36m@@ -1067,6 +1192,8 @@[m [mgistformdownlink(Relation rel, Buffer buf, GISTSTATE *giststate,[m
++ 		ItemId		iid;[m
++ [m
++ 		LockBuffer(stack->parent->buffer, GIST_EXCLUSIVE);[m
++[32m+[m
++[32m+[m
++ 		gistFindCorrectParent(rel, stack);[m
++ 		iid = PageGetItemId(stack->parent->page, stack->downlinkoffnum);[m
++ 		downlink = (IndexTuple) PageGetItem(stack->parent->page, iid);[m
++[36m@@ -1213,7 +1340,15 @@[m [mgistinserttuples(GISTInsertState *state, GISTInsertStack *stack,[m
++ 	 * didn't have to split, release it ourselves.[m
++ 	 */[m
++ 	if (splitinfo)[m
++[32m+[m	[32m{[m
++[32m+[m		[32m/*elog(NOTICE,"before finishsplit doing");[m
++[32m+[m		[32mgistcheckpage(state->r,stack->buffer);[m
++[32m+[m		[32melog(NOTICE,"before finishsplit done ");*/[m
++ 		gistfinishsplit(state, stack, giststate, splitinfo, unlockbuf);[m
++[32m+[m		[32m/*elog(NOTICE,"after finishsplit doing");[m
++[32m+[m		[32mgistcheckpage(state->r,stack->buffer);[m
++[32m+[m		[32melog(NOTICE,"after finishsplit done");*/[m
++[32m+[m	[32m}[m
++ 	else if (unlockbuf)[m
++ 		LockBuffer(stack->buffer, GIST_UNLOCK);[m
++ [m
++[36m@@ -1278,6 +1413,9 @@[m [mgistfinishsplit(GISTInsertState *state, GISTInsertStack *stack,[m
++ 			 * If the parent page was split, need to relocate the original[m
++ 			 * parent pointer.[m
++ 			 */[m
++[32m+[m			[32m/*elog(NOTICE,"check finishspit");[m
++[32m+[m				[32mgistcheckpage(state->r, stack->buffer);*/[m
++[32m+[m
++ 			gistFindCorrectParent(state->r, stack);[m
++ 		}[m
++ 		/* gistinserttuples() released the lock on right->buf. */[m
++[36m@@ -1314,7 +1452,8 @@[m [mgistSplit(Relation r,[m
++ 		  Page page,[m
++ 		  IndexTuple *itup,		/* contains compressed entry */[m
++ 		  int len,[m
++[31m-		  GISTSTATE *giststate)[m
++[32m+[m		[32m  GISTSTATE *giststate,bool[m
++[32m+[m		[32m  (*fitfunction)(IndexTuple*, int))[m
++ {[m
++ 	IndexTuple *lvectup,[m
++ 			   *rvectup;[m
++[36m@@ -1354,9 +1493,9 @@[m [mgistSplit(Relation r,[m
++ 		rvectup[i] = itup[v.splitVector.spl_right[i] - 1];[m
++ [m
++ 	/* finalize splitting (may need another split) */[m
++[31m-	if (!gistfitpage(rvectup, v.splitVector.spl_nright))[m
++[32m+[m	[32mif (!(fitfunction)(rvectup, v.splitVector.spl_nright))[m
++ 	{[m
++[31m-		res = gistSplit(r, page, rvectup, v.splitVector.spl_nright, giststate);[m
++[32m+[m		[32mres = gistSplit(r, page, rvectup, v.splitVector.spl_nright, giststate,fitfunction);[m
++ 	}[m
++ 	else[m
++ 	{[m
++[36m@@ -1366,12 +1505,12 @@[m [mgistSplit(Relation r,[m
++ 		res->itup = gistFormTuple(giststate, r, v.spl_rattr, v.spl_risnull, false);[m
++ 	}[m
++ [m
++[31m-	if (!gistfitpage(lvectup, v.splitVector.spl_nleft))[m
++[32m+[m	[32mif (!(fitfunction)(lvectup, v.splitVector.spl_nleft))[m
++ 	{[m
++ 		SplitedPageLayout *resptr,[m
++ 				   *subres;[m
++ [m
++[31m-		resptr = subres = gistSplit(r, page, lvectup, v.splitVector.spl_nleft, giststate);[m
++[32m+[m		[32mresptr = subres = gistSplit(r, page, lvectup, v.splitVector.spl_nleft, giststate,fitfunction);[m
++ [m
++ 		/* install on list's tail */[m
++ 		while (resptr->next)[m
++[36m@@ -1520,6 +1659,7 @@[m [mgistvacuumpage(Relation rel, Page page, Buffer buffer)[m
++ [m
++ 	if (ndeletable > 0)[m
++ 	{[m
++[32m+[m		[32melog(ERROR,"I was not going to delete anything");//todo[m
++ 		START_CRIT_SECTION();[m
++ [m
++ 		PageIndexMultiDelete(page, deletable, ndeletable);[m
++[1mdiff --git a/src/backend/access/gist/gistbuild.c b/src/backend/access/gist/gistbuild.c[m
++[1mindex 4e43a69..312376d 100644[m
++[1m--- a/src/backend/access/gist/gistbuild.c[m
++[1m+++ b/src/backend/access/gist/gistbuild.c[m
++[36m@@ -572,6 +572,7 @@[m [mgistProcessItup(GISTBuildState *buildstate, IndexTuple itup,[m
++ 					newtup;[m
++ 		Page		page;[m
++ 		OffsetNumber childoffnum;[m
++[32m+[m		[32mOffsetNumber skipchildoffnum;[m
++ [m
++ 		/* Have we reached a level with buffers? */[m
++ 		if (LEVEL_HAS_BUFFERS(level, gfbb) && level != startlevel)[m
++[36m@@ -590,7 +591,7 @@[m [mgistProcessItup(GISTBuildState *buildstate, IndexTuple itup,[m
++ 		LockBuffer(buffer, GIST_EXCLUSIVE);[m
++ [m
++ 		page = (Page) BufferGetPage(buffer);[m
++[31m-		childoffnum = gistchoose(indexrel, page, itup, giststate);[m
++[32m+[m		[32mchildoffnum = gistchoose(indexrel, page, itup, giststate, &skipchildoffnum);[m
++ 		iid = PageGetItemId(page, childoffnum);[m
++ 		idxtuple = (IndexTuple) PageGetItem(page, iid);[m
++ 		childblkno = ItemPointerGetBlockNumber(&(idxtuple->t_tid));[m
++[1mdiff --git a/src/backend/access/gist/gistget.c b/src/backend/access/gist/gistget.c[m
++[1mindex 8138383..5a1d7ba 100644[m
++[1m--- a/src/backend/access/gist/gistget.c[m
++[1m+++ b/src/backend/access/gist/gistget.c[m
++[36m@@ -175,7 +175,10 @@[m [mgistindex_keytest(IndexScanDesc scan,[m
++ 			if (key->sk_flags & SK_SEARCHNULL)[m
++ 			{[m
++ 				if (GistPageIsLeaf(page) && !isNull)[m
++[32m+[m				[32m{[m
++[32m+[m					[32melog(NOTICE,"Null exit on leaf page");[m
++ 					return false;[m
++[32m+[m				[32m}[m
++ 			}[m
++ 			else[m
++ 			{[m
++[36m@@ -196,7 +199,7 @@[m [mgistindex_keytest(IndexScanDesc scan,[m
++ [m
++ 			gistdentryinit(giststate, key->sk_attno - 1, &de,[m
++ 						   datum, r, page, offset,[m
++[31m-						   FALSE, isNull);[m
++[32m+[m						[32m   FALSE, isNull, GistTupleIsSkip(tuple));[m
++ [m
++ 			/*[m
++ 			 * Call the Consistent function to evaluate the test.  The[m
++[36m@@ -257,7 +260,7 @@[m [mgistindex_keytest(IndexScanDesc scan,[m
++ [m
++ 			gistdentryinit(giststate, key->sk_attno - 1, &de,[m
++ 						   datum, r, page, offset,[m
++[31m-						   FALSE, isNull);[m
++[32m+[m						[32m   FALSE, isNull, GistTupleIsSkip(tuple));[m
++ [m
++ 			/*[m
++ 			 * Call the Distance function to evaluate the distance.  The[m
++[36m@@ -383,6 +386,8 @@[m [mgistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,[m
++ 	 */[m
++ 	so->curPageLSN = PageGetLSN(page);[m
++ [m
++[32m+[m	[32mgistcheckpage1(r,buffer,giststate);[m
++[32m+[m
++ 	/*[m
++ 	 * check all tuples on page[m
++ 	 */[m
++[36m@@ -394,6 +399,7 @@[m [mgistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,[m
++ 		bool		match;[m
++ 		bool		recheck;[m
++ 		bool		recheck_distances;[m
++[32m+[m		[32mbool	skip_tuple;[m
++ [m
++ 		/*[m
++ 		 * If the scan specifies not to return killed tuples, then we treat a[m
++[36m@@ -403,6 +409,8 @@[m [mgistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,[m
++ 			continue;[m
++ [m
++ 		it = (IndexTuple) PageGetItem(page, iid);[m
++[32m+[m		[32mskip_tuple = GistTupleIsSkip(it);[m
++[32m+[m
++ 		/*[m
++ 		 * Must call gistindex_keytest in tempCxt, and clean up any leftover[m
++ 		 * junk afterward.[m
++[36m@@ -417,7 +425,49 @@[m [mgistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,[m
++ [m
++ 		/* Ignore tuple if it doesn't match */[m
++ 		if (!match)[m
++[32m+[m		[32m{[m
++[32m+[m			[32mif(skip_tuple)//we found unmatching skiptuple[m
++[32m+[m			[32m{[m
++[32m+[m				[32mint skip_count = GistTupleGetSkipCount(it);[m
++[32m+[m
++[32m+[m				[32mwhile(skip_count>0)[m
++[32m+[m				[32m{[m
++[32m+[m					[32mi = OffsetNumberNext(i);[m
++[32m+[m[32m#ifdef SKIPTUPLE_DEBUG[m
++[32m+[m					[32m{[m
++[32m+[m						[32mint init_skip_count = GistTupleGetSkipCount(it);[m
++[32m+[m						[32mIndexTuple originSkiptuple = it;[m
++[32m+[m					[32mif(i<=maxoff)[m
++[32m+[m					[32m{[m
++[32m+[m						[32miid = PageGetItemId(page, i);[m
++[32m+[m						[32mit = (IndexTuple) PageGetItem(page, iid);[m
++[32m+[m						[32mif(GistTupleIsSkip(it))[m
++[32m+[m							[32melog(ERROR,"Encountered skip tuple skipcount %d  initial %d",skip_count,init_skip_count);[m
++[32m+[m						[32mmatch = gistindex_keytest(scan, it, page, i,[m
++[32m+[m														[32m  &recheck, &recheck_distances);[m
++[32m+[m						[32mif(match)[m
++[32m+[m						[32m{[m
++[32m+[m							[32mif(gistgetadjusted(r,originSkiptuple,it,giststate))[m
++[32m+[m								[32melog(NOTICE,"Skiptuple key is actually mismatched");[m
++[32m+[m							[32melog(NOTICE,"Skipping tuple we shouldn't; skipcount %d  initial %d isLeaf %d",skip_count,init_skip_count,GistPageIsLeaf(page));[m
++[32m+[m						[32m}[m
++[32m+[m
++[32m+[m
++[32m+[m					[32m}[m
++[32m+[m					[32m}[m
++[32m+[m[32m#endif[m
++[32m+[m
++[32m+[m					[32mskip_count--;[m
++[32m+[m				[32m}[m
++[32m+[m			[32m}[m
++ 			continue;[m
++[32m+[m		[32m}[m
++[32m+[m
++[32m+[m		[32m/*if skiptuple matches - we just goon reading next tuples*/[m
++[32m+[m		[32mif(skip_tuple)[m
++[32m+[m		[32m{[m
++[32m+[m			[32mcontinue;[m
++[32m+[m		[32m}[m
++ [m
++ 		if (tbm && GistPageIsLeaf(page))[m
++ 		{[m
++[1mdiff --git a/src/backend/access/gist/gistsplit.c b/src/backend/access/gist/gistsplit.c[m
++[1mindex d394969..8676b49 100644[m
++[1m--- a/src/backend/access/gist/gistsplit.c[m
++[1m+++ b/src/backend/access/gist/gistsplit.c[m
++[36m@@ -643,7 +643,7 @@[m [mgistSplitByKey(Relation r, Page page, IndexTuple *itup, int len,[m
++ 							  &IsNull);[m
++ 		gistdentryinit(giststate, attno, &(entryvec->vector[i]),[m
++ 					   datum, r, page, i,[m
++[31m-					   FALSE, IsNull);[m
++[32m+[m					[32m   FALSE, IsNull, false);[m
++ 		if (IsNull)[m
++ 			offNullTuples[nOffNullTuples++] = i;[m
++ 	}[m
++[1mdiff --git a/src/backend/access/gist/gistutil.c b/src/backend/access/gist/gistutil.c[m
++[1mindex fac166d..94a47f9 100644[m
++[1m--- a/src/backend/access/gist/gistutil.c[m
++[1m+++ b/src/backend/access/gist/gistutil.c[m
++[36m@@ -20,7 +20,7 @@[m
++ #include "storage/indexfsm.h"[m
++ #include "storage/lmgr.h"[m
++ #include "utils/builtins.h"[m
++[31m-[m
++[32m+[m[32m#include <signal.h>[m
++ [m
++ /*[m
++  * Write itup vector to page, has no control of free space.[m
++[36m@@ -83,6 +83,28 @@[m [mgistfitpage(IndexTuple *itvec, int len)[m
++ 	return (size <= GiSTPageSize);[m
++ }[m
++ [m
++[32m+[m[32mbool[m
++[32m+[m[32mgistfitskiplayout(SplitedPageLayout*ptr)[m
++[32m+[m[32m{[m
++[32m+[m	[32mint totallength = 0;[m
++[32m+[m	[32mfor (; ptr; ptr = ptr->next)[m
++[32m+[m	[32m{[m
++[32m+[m		[32mtotallength += ptr->lenlist + IndexTupleSize(ptr->itup) + sizeof(ItemIdData)*(ptr->block.num+1);[m
++[32m+[m	[32m}[m
++[32m+[m	[32mreturn totallength<= GiSTPageSize;[m
++[32m+[m[32m}[m
++[32m+[m
++[32m+[m
++[32m+[m[32mbool[m
++[32m+[m[32mgistfitskiptuple(IndexTuple *itvec, int len)[m
++[32m+[m[32m{[m
++[32m+[m	[32m/*TODO: we could consider actual sqrt-decomposition here[m
++[32m+[m	[32m * , but current aim is to build full bush of skiplists,[m
++[32m+[m	[32m * not just two-level structure*/[m
++[32m+[m
++[32m+[m	[32mreturn len<=SKIPTUPLE_TRESHOLD;[m
++[32m+[m[32m}[m
++[32m+[m
++ /*[m
++  * Read buffer into itup vector[m
++  */[m
++[36m@@ -91,13 +113,41 @@[m [mgistextractpage(Page page, int *len /* out */ )[m
++ {[m
++ 	OffsetNumber i,[m
++ 				maxoff;[m
++[32m+[m	[32mint counter = 0;[m
++ 	IndexTuple *itvec;[m
++ [m
++ 	maxoff = PageGetMaxOffsetNumber(page);[m
++[31m-	*len = maxoff;[m
++[32m+[m	[32m//*len = maxoff;[m
++ 	itvec = palloc(sizeof(IndexTuple) * maxoff);[m
++ 	for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))[m
++[31m-		itvec[i - FirstOffsetNumber] = (IndexTuple) PageGetItem(page, PageGetItemId(page, i));[m
++[32m+[m	[32m{[m
++[32m+[m		[32mIndexTuple itup = (IndexTuple) PageGetItem(page, PageGetItemId(page, i));[m
++[32m+[m		[32mif (!GistTupleIsSkip(itup))[m
++[32m+[m			[32mitvec[counter++] = itup;[m
++[32m+[m	[32m}[m
++[32m+[m	[32m*len = counter;[m
++[32m+[m
++[32m+[m	[32mreturn itvec;[m
++[32m+[m[32m}[m
++[32m+[m
++[32m+[m
++[32m+[m[32m/*[m
++[32m+[m[32m * Read split info into itup vector[m
++[32m+[m[32m */[m
++[32m+[m[32mIndexTuple *[m
++[32m+[m[32mgistextractsplitpagelayout(SplitedPageLayout*ptr)[m
++[32m+[m[32m{[m
++[32m+[m	[32mIndexTuple *itvec = palloc(sizeof(IndexTuple) * ptr->block.num);[m
++[32m+[m	[32mchar	   *data = (char *) (ptr->list);[m
++[32m+[m	[32mint i;[m
++[32m+[m	[32mfor (i = 0; i < ptr->block.num; i++)[m
++[32m+[m				[32m{[m
++[32m+[m					[32mIndexTuple	thistup = (IndexTuple) data;[m
++[32m+[m					[32mif(GistTupleIsSkip(thistup))[m
++[32m+[m						[32melog(ERROR,"Skiptuple found in skipgroup");[m
++[32m+[m					[32mitvec[i]=data;[m
++[32m+[m					[32mdata += IndexTupleSize(thistup);[m
++[32m+[m				[32m}[m
++ [m
++ 	return itvec;[m
++ }[m
++[36m@@ -175,7 +225,7 @@[m [mgistMakeUnionItVec(GISTSTATE *giststate, IndexTuple *itvec, int len,[m
++ 						   evec->vector + evec->n,[m
++ 						   datum,[m
++ 						   NULL, NULL, (OffsetNumber) 0,[m
++[31m-						   FALSE, IsNull);[m
++[32m+[m						[32m   FALSE, IsNull, false);[m
++ 			evec->n++;[m
++ 		}[m
++ [m
++[36m@@ -299,7 +349,7 @@[m [mgistDeCompressAtt(GISTSTATE *giststate, Relation r, IndexTuple tuple, Page p,[m
++ 		datum = index_getattr(tuple, i + 1, giststate->tupdesc, &isnull[i]);[m
++ 		gistdentryinit(giststate, i, &attdata[i],[m
++ 					   datum, r, p, o,[m
++[31m-					   FALSE, isnull[i]);[m
++[32m+[m					[32m   FALSE, isnull[i], false);[m
++ 	}[m
++ }[m
++ [m
++[36m@@ -366,9 +416,10 @@[m [mgistgetadjusted(Relation r, IndexTuple oldtup, IndexTuple addtup, GISTSTATE *gis[m
++  */[m
++ OffsetNumber[m
++ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */[m
++[31m-		   GISTSTATE *giststate)[m
++[32m+[m		[32m   GISTSTATE *giststate, OffsetNumber *skipoffnum)[m
++ {[m
++ 	OffsetNumber result;[m
++[32m+[m	[32mOffsetNumber seen_skipnum = InvalidOffsetNumber;[m
++ 	OffsetNumber maxoff;[m
++ 	OffsetNumber i;[m
++ 	float		best_penalty[INDEX_MAX_KEYS];[m
++[36m@@ -376,6 +427,8 @@[m [mgistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */[m
++ 				identry[INDEX_MAX_KEYS];[m
++ 	bool		isnull[INDEX_MAX_KEYS];[m
++ 	int			keep_current_best;[m
++[32m+[m	[32mint			last_skipcount = 0;[m
++[32m+[m	[32mint			seen_skipcount = 0;[m
++ [m
++ 	Assert(!GistPageIsLeaf(p));[m
++ [m
++[36m@@ -383,6 +436,7 @@[m [mgistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */[m
++ 					  it, NULL, (OffsetNumber) 0,[m
++ 					  identry, isnull);[m
++ [m
++[32m+[m	[32m*skipoffnum = InvalidOffsetNumber;[m
++ 	/* we'll return FirstOffsetNumber if page is empty (shouldn't happen) */[m
++ 	result = FirstOffsetNumber;[m
++ [m
++[36m@@ -432,6 +486,15 @@[m [mgistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */[m
++ 	for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))[m
++ 	{[m
++ 		IndexTuple	itup = (IndexTuple) PageGetItem(p, PageGetItemId(p, i));[m
++[32m+[m
++[32m+[m		[32m/*TODO: use skiptuple info for choose*/[m
++[32m+[m		[32mif(GistTupleIsSkip(itup))[m
++[32m+[m		[32m{[m
++[32m+[m			[32mseen_skipnum = i;[m
++[32m+[m			[32mseen_skipcount = GistTupleGetSkipCount(itup);[m
++[32m+[m			[32mcontinue;[m
++[32m+[m		[32m}[m
++[32m+[m
++ 		bool		zero_penalty;[m
++ 		int			j;[m
++ [m
++[36m@@ -447,7 +510,7 @@[m [mgistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */[m
++ 			/* Compute penalty for this column. */[m
++ 			datum = index_getattr(itup, j + 1, giststate->tupdesc, &IsNull);[m
++ 			gistdentryinit(giststate, j, &entry, datum, r, p, i,[m
++[31m-						   FALSE, IsNull);[m
++[32m+[m						[32m   FALSE, IsNull, false);[m
++ 			usize = gistpenalty(giststate, j, &entry, IsNull,[m
++ 								&identry[j], isnull[j]);[m
++ 			if (usize > 0)[m
++[36m@@ -464,6 +527,8 @@[m [mgistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */[m
++ 				 * remaining columns during subsequent loop iterations.[m
++ 				 */[m
++ 				result = i;[m
++[32m+[m				[32mlast_skipcount = seen_skipcount;[m
++[32m+[m				[32m*skipoffnum = seen_skipnum;[m
++ 				best_penalty[j] = usize;[m
++ [m
++ 				if (j < r->rd_att->natts - 1)[m
++[36m@@ -507,6 +572,8 @@[m [mgistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */[m
++ 			{[m
++ 				/* we choose to use the new tuple */[m
++ 				result = i;[m
++[32m+[m				[32mlast_skipcount = seen_skipcount;[m
++[32m+[m				[32m*skipoffnum = seen_skipnum;[m
++ 				/* choose again if there are even more exactly-as-good ones */[m
++ 				keep_current_best = -1;[m
++ 			}[m
++[36m@@ -530,6 +597,9 @@[m [mgistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */[m
++ 		}[m
++ 	}[m
++ [m
++[32m+[m	[32mif(result - *skipoffnum > last_skipcount)[m
++[32m+[m		[32m*skipoffnum = InvalidOffsetNumber;[m
++[32m+[m
++ 	return result;[m
++ }[m
++ [m
++[36m@@ -539,7 +609,7 @@[m [mgistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */[m
++ void[m
++ gistdentryinit(GISTSTATE *giststate, int nkey, GISTENTRY *e,[m
++ 			   Datum k, Relation r, Page pg, OffsetNumber o,[m
++[31m-			   bool l, bool isNull)[m
++[32m+[m			[32m   bool l, bool isNull, bool skipTuple)[m
++ {[m
++ 	if (!isNull)[m
++ 	{[m
++[36m@@ -552,8 +622,15 @@[m [mgistdentryinit(GISTSTATE *giststate, int nkey, GISTENTRY *e,[m
++ 											  PointerGetDatum(e)));[m
++ 		/* decompressFn may just return the given pointer */[m
++ 		if (dep != e)[m
++[32m+[m		[32m{[m
++ 			gistentryinit(*e, dep->key, dep->rel, dep->page, dep->offset,[m
++ 						  dep->leafkey);[m
++[32m+[m		[32m}[m
++[32m+[m
++[32m+[m		[32mif (skipTuple)[m
++[32m+[m		[32m{[m
++[32m+[m			[32me->leafpage = false;[m
++[32m+[m		[32m}[m
++ 	}[m
++ 	else[m
++ 		gistentryinit(*e, (Datum) 0, r, pg, o, l);[m
++[36m@@ -719,6 +796,7 @@[m [mvoid[m
++ gistcheckpage(Relation rel, Buffer buf)[m
++ {[m
++ 	Page		page = BufferGetPage(buf);[m
++[32m+[m	[32mint maxoff,i,o;[m
++ [m
++ 	/*[m
++ 	 * ReadBuffer verifies that every newly-read page passes[m
++[36m@@ -744,6 +822,84 @@[m [mgistcheckpage(Relation rel, Buffer buf)[m
++ 						RelationGetRelationName(rel),[m
++ 						BufferGetBlockNumber(buf)),[m
++ 				 errhint("Please REINDEX it.")));[m
++[32m+[m[32m#ifdef SKIPTUPLE_DEBUG[m
++[32m+[m	[32mmaxoff = PageGetMaxOffsetNumber(page);[m
++[32m+[m
++[32m+[m		[32mfor (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))[m
++[32m+[m		[32m{[m
++[32m+[m			[32mIndexTuple itup = (IndexTuple) PageGetItem(page, PageGetItemId(page, i));[m
++[32m+[m			[32mif (GistTupleIsSkip(itup))[m
++[32m+[m			[32m{[m
++[32m+[m				[32mfor (o = i+1; o <= i+GistTupleGetSkipCount(itup); o = OffsetNumberNext(o))[m
++[32m+[m				[32m{[m
++[32m+[m					[32mIndexTuple otup = (IndexTuple) PageGetItem(page, PageGetItemId(page, o));[m
++[32m+[m					[32mif(GistTupleIsSkip(otup))[m
++[32m+[m					[32m{[m
++[32m+[m						[32m//raise(SIGTRAP);[m
++[32m+[m						[32melog(ERROR,"wrong place for skiptuple at %d skiptuple index %d skipcount %d page %x",o,i,GistTupleGetSkipCount(itup),page);[m
++[32m+[m					[32m}[m
++[32m+[m				[32m}[m
++[32m+[m			[32m}[m
++[32m+[m		[32m}[m
++[32m+[m[32m#endif[m
++[32m+[m[32m}[m
++[32m+[m
++[32m+[m[32m/*[m
++[32m+[m[32m * Verify that a freshly-read page looks sane and check all the skiptuples.[m
++[32m+[m[32m */[m
++[32m+[m[32mvoid[m
++[32m+[m[32mgistcheckpage1(Relation rel, Buffer buf, GISTSTATE *giststate)[m
++[32m+[m[32m{[m
++[32m+[m	[32mPage		page = BufferGetPage(buf);[m
++[32m+[m	[32mint maxoff,i,o;[m
++[32m+[m
++[32m+[m	[32m/*[m
++[32m+[m	[32m * ReadBuffer verifies that every newly-read page passes[m
++[32m+[m	[32m * PageHeaderIsValid, which means it either contains a reasonably sane[m
++[32m+[m	[32m * page header or is all-zero.  We have to defend against the all-zero[m
++[32m+[m	[32m * case, however.[m
++[32m+[m	[32m */[m
++[32m+[m	[32mif (PageIsNew(page))[m
++[32m+[m		[32mereport(ERROR,[m
++[32m+[m				[32m(errcode(ERRCODE_INDEX_CORRUPTED),[m
++[32m+[m			[32m errmsg("index \"%s\" contains unexpected zero page at block %u",[m
++[32m+[m					[32mRelationGetRelationName(rel),[m
++[32m+[m					[32mBufferGetBlockNumber(buf)),[m
++[32m+[m				[32m errhint("Please REINDEX it.")));[m
++[32m+[m
++[32m+[m	[32m/*[m
++[32m+[m	[32m * Additionally check that the special area looks sane.[m
++[32m+[m	[32m */[m
++[32m+[m	[32mif (PageGetSpecialSize(page) != MAXALIGN(sizeof(GISTPageOpaqueData)))[m
++[32m+[m		[32mereport(ERROR,[m
++[32m+[m				[32m(errcode(ERRCODE_INDEX_CORRUPTED),[m
++[32m+[m				[32m errmsg("index \"%s\" contains corrupted page at block %u",[m
++[32m+[m						[32mRelationGetRelationName(rel),[m
++[32m+[m						[32mBufferGetBlockNumber(buf)),[m
++[32m+[m				[32m errhint("Please REINDEX it.")));[m
++[32m+[m[32m#ifdef SKIPTUPLE_DEBUG[m
++[32m+[m	[32mmaxoff = PageGetMaxOffsetNumber(page);[m
++[32m+[m
++[32m+[m		[32mfor (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))[m
++[32m+[m		[32m{[m
++[32m+[m			[32mIndexTuple itup = (IndexTuple) PageGetItem(page, PageGetItemId(page, i));[m
++[32m+[m			[32mif (GistTupleIsSkip(itup))[m
++[32m+[m			[32m{[m
++[32m+[m				[32mfor (o = i+1; o <= i+GistTupleGetSkipCount(itup); o = OffsetNumberNext(o))[m
++[32m+[m				[32m{[m
++[32m+[m					[32mIndexTuple otup = (IndexTuple) PageGetItem(page, PageGetItemId(page, o));[m
++[32m+[m					[32mif(GistTupleIsSkip(otup))[m
++[32m+[m					[32m{[m
++[32m+[m						[32m//raise(SIGTRAP);[m
++[32m+[m						[32melog(ERROR,"wrong place for skiptuple at %d skiptuple index %d skipcount %d page %x",o,i,GistTupleGetSkipCount(itup),page);[m
++[32m+[m					[32m}[m
++[32m+[m
++[32m+[m					[32mif(gistgetadjusted(rel, itup, otup,  giststate))[m
++[32m+[m						[32melog(ERROR,"Key at %d do not fit in skiptuple index %d skipcount %d page %x",o,i,GistTupleGetSkipCount(itup),page);[m
++[32m+[m				[32m}[m
++[32m+[m			[32m}[m
++[32m+[m		[32m}[m
++[32m+[m[32m#endif[m
++ }[m
++ [m
++ [m
++[1mdiff --git a/src/include/access/gist.h b/src/include/access/gist.h[m
++[1mindex 4343d6f..2014d9d 100644[m
++[1m--- a/src/include/access/gist.h[m
++[1m+++ b/src/include/access/gist.h[m
++[36m@@ -16,6 +16,7 @@[m
++ #ifndef GIST_H[m
++ #define GIST_H[m
++ [m
++[32m+[m[32m#include "access/itup.h"[m
++ #include "access/xlog.h"[m
++ #include "access/xlogdefs.h"[m
++ #include "storage/block.h"[m
++[36m@@ -125,12 +126,13 @@[m [mtypedef struct GISTENTRY[m
++ 	Page		page;[m
++ 	OffsetNumber offset;[m
++ 	bool		leafkey;[m
++[32m+[m	[32mbool		leafpage;[m
++ } GISTENTRY;[m
++ [m
++ #define GistPageGetOpaque(page) ( (GISTPageOpaque) PageGetSpecialPointer(page) )[m
++ [m
++ #define GistPageIsLeaf(page)	( GistPageGetOpaque(page)->flags & F_LEAF)[m
++[31m-#define GIST_LEAF(entry) (GistPageIsLeaf((entry)->page))[m
++[32m+[m[32m#define GIST_LEAF(entry) ((entry)->leafpage)[m
++ [m
++ #define GistPageIsDeleted(page) ( GistPageGetOpaque(page)->flags & F_DELETED)[m
++ #define GistPageSetDeleted(page)	( GistPageGetOpaque(page)->flags |= F_DELETED)[m
++[36m@@ -151,6 +153,13 @@[m [mtypedef struct GISTENTRY[m
++ #define GistPageGetNSN(page) ( PageXLogRecPtrGet(GistPageGetOpaque(page)->nsn))[m
++ #define GistPageSetNSN(page, val) ( PageXLogRecPtrSet(GistPageGetOpaque(page)->nsn, val))[m
++ [m
++[32m+[m[32m#define SKIPTUPLE_TRESHOLD	0x80[m
++[32m+[m[32m#define TUPLE_IS_SKIP		0x1[m
++[32m+[m[32m#define  GistTupleIsSkip(itup)	( itup->t_skipflags == TUPLE_IS_SKIP )[m
++[32m+[m[32m#define  GistTupleGetSkipCount(itup)	( itup->t_skipcount )[m
++[32m+[m[32m#define  GistTupleSetSkipCount(itup,count)	do{ itup->t_skipcount = count;} while(0)[m
++[32m+[m[32m#define  GistTupleSetSkip(itup)	do{ itup->t_skipflags = TUPLE_IS_SKIP;} while(0)[m
++[32m+[m
++ /*[m
++  * Vector of GISTENTRY structs; user-defined methods union and picksplit[m
++  * take it as one of their arguments[m
++[36m@@ -168,6 +177,7 @@[m [mtypedef struct[m
++  */[m
++ #define gistentryinit(e, k, r, pg, o, l) \[m
++ 	do { (e).key = (k); (e).rel = (r); (e).page = (pg); \[m
++[31m-		 (e).offset = (o); (e).leafkey = (l); } while (0)[m
++[32m+[m		[32m (e).offset = (o); (e).leafkey = (l); \[m
++[32m+[m		[32m (e).leafpage = (pg) && GistPageIsLeaf(pg); } while (0)[m
++ [m
++ #endif   /* GIST_H */[m
++[1mdiff --git a/src/include/access/gist_private.h b/src/include/access/gist_private.h[m
++[1mindex f9732ba..d62fdc8 100644[m
++[1m--- a/src/include/access/gist_private.h[m
++[1m+++ b/src/include/access/gist_private.h[m
++[36m@@ -325,8 +325,6 @@[m [mtypedef struct[m
++ #define  GistTupleSetValid(itup)	ItemPointerSetOffsetNumber( &((itup)->t_tid), TUPLE_IS_VALID )[m
++ [m
++ [m
++[31m-[m
++[31m-[m
++ /*[m
++  * A buffer attached to an internal node, used when building an index in[m
++  * buffering mode.[m
++[36m@@ -456,7 +454,8 @@[m [mextern bool gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,[m
++ 				bool markleftchild);[m
++ [m
++ extern SplitedPageLayout *gistSplit(Relation r, Page page, IndexTuple *itup,[m
++[31m-		  int len, GISTSTATE *giststate);[m
++[32m+[m		[32m  int len, GISTSTATE *giststate,bool[m
++[32m+[m		[32m  (*fitfunction)(IndexTuple*, int));[m
++ [m
++ /* gistxlog.c */[m
++ extern void gist_redo(XLogReaderState *record);[m
++[36m@@ -494,12 +493,16 @@[m [mextern bool gistvalidate(Oid opclassoid);[m
++ [m
++ extern bytea *gistoptions(Datum reloptions, bool validate);[m
++ extern bool gistfitpage(IndexTuple *itvec, int len);[m
++[32m+[m[32mextern bool gistfitskiplayout(SplitedPageLayout *ptr);[m
++[32m+[m[32mextern bool gistfitskiptuple(IndexTuple *itvec, int len);[m
++ extern bool gistnospace(Page page, IndexTuple *itvec, int len, OffsetNumber todelete, Size freespace);[m
++ extern void gistcheckpage(Relation rel, Buffer buf);[m
++[32m+[m[32mextern void gistcheckpage1(Relation rel, Buffer buf, GISTSTATE *giststate);[m
++ extern Buffer gistNewBuffer(Relation r);[m
++ extern void gistfillbuffer(Page page, IndexTuple *itup, int len,[m
++ 			   OffsetNumber off);[m
++ extern IndexTuple *gistextractpage(Page page, int *len /* out */ );[m
++[32m+[m[32mextern IndexTuple * gistextractsplitpagelayout(SplitedPageLayout*ptr);[m
++ extern IndexTuple *gistjoinvector([m
++ 			   IndexTuple *itvec, int *len,[m
++ 			   IndexTuple *additvec, int addlen);[m
++[36m@@ -516,12 +519,13 @@[m [mextern IndexTuple gistFormTuple(GISTSTATE *giststate,[m
++ [m
++ extern OffsetNumber gistchoose(Relation r, Page p,[m
++ 		   IndexTuple it,[m
++[31m-		   GISTSTATE *giststate);[m
++[32m+[m		[32m   GISTSTATE *giststate,[m
++[32m+[m		[32m   OffsetNumber *skipoffnum);[m
++ [m
++ extern void GISTInitBuffer(Buffer b, uint32 f);[m
++ extern void gistdentryinit(GISTSTATE *giststate, int nkey, GISTENTRY *e,[m
++ 			   Datum k, Relation r, Page pg, OffsetNumber o,[m
++[31m-			   bool l, bool isNull);[m
++[32m+[m			[32m   bool l, bool isNull, bool skipTuple);[m
++ [m
++ extern float gistpenalty(GISTSTATE *giststate, int attno,[m
++ 			GISTENTRY *key1, bool isNull1,[m
++[1mdiff --git a/src/include/access/itup.h b/src/include/access/itup.h[m
++[1mindex 8350fa0..72631c2 100644[m
++[1m--- a/src/include/access/itup.h[m
++[1m+++ b/src/include/access/itup.h[m
++[36m@@ -48,6 +48,10 @@[m [mtypedef struct IndexTupleData[m
++ [m
++ 	unsigned short t_info;		/* various info about tuple */[m
++ [m
++[32m+[m	[32m/*this data is here only for dev purposes, will be removed soon*/[m
++[32m+[m	[32munsigned short t_skipflags;[m
++[32m+[m	[32munsigned short t_skipcount;[m
++[32m+[m
++ } IndexTupleData;				/* MORE DATA FOLLOWS AT END OF STRUCT */[m
++ [m
++ typedef IndexTupleData *IndexTuple;[m
++[1mdiff --git a/test.sh b/test.sh[m
++[1mnew file mode 100755[m
++[1mindex 0000000..3767958[m
++[1m--- /dev/null[m
++[1m+++ b/test.sh[m
++[36m@@ -0,0 +1,2 @@[m
++[32m+[m[32m#!/bin/sh[m
++[32m+[m[32m/home/x4m/project/bin/psql postgres</home/x4m/pgsql/test.sql[m
++[1mdiff --git a/test.sql b/test.sql[m
++[1mnew file mode 100644[m
++[1mindex 0000000..85115aa[m
++[1m--- /dev/null[m
++[1m+++ b/test.sql[m
++[36m@@ -0,0 +1,27 @@[m
++[32m+[m[32m﻿\timing[m
++[32m+[m[32mSET client_min_messages = 'DEBUG5';[m
++[32m+[m[32mSET log_min_messages = 'DEBUG5';[m
++[32m+[m[32mSET wal_level = 'minimal';[m
++[32m+[m
++[32m+[m[32mcreate extension if not exists cube;[m
++[32m+[m
++[32m+[m[32mbegin transaction;[m
++[32m+[m[32mSELECT setseed(.43);[m
++[32m+[m
++[32m+[m
++[32m+[m[32mcreate table queries(id int,l1 float,l2 float,l3 float, u1 float,u2 float, u3 float, q cube);[m
++[32m+[m[32minsert into queries(id,l1,l2,l3) select s,random()/1.3,random()/1.3,random()/1.3 from generate_series(1,1e5,1) s;[m
++[32m+[m[32mupdate queries set q = cube(array[l1,l2,l3],array[l1+0.01001,l2+0.10001,l3+0.10001]);[m
++[32m+[m
++[32m+[m[32mcreate table dataTable(c cube);[m
++[32m+[m[32mcreate index idx on dataTable using gist(c);[m
++[32m+[m
++[32m+[m[32minsert into dataTable(c) select cube(array[x/100,y/10,z/10]) from generate_series(1,1e2,1) x,generate_series(1,1e1,1) y,generate_series(1,1e1,1) z;[m
++[32m+[m
++[32m+[m
++[32m+[m[32mselect id,(select count(*) from dataTable dt where dt.c<@q) from queries order by id;[m
++[32m+[m
++[32m+[m[32mrollback;[m
++[32m+[m[32m--drop index idx;[m
++[32m+[m[32m--drop table dataTable;[m
++[32m+[m[32m--drop table queries;[m
+-- 
+1.9.1
+
