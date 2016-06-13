@@ -584,6 +584,38 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 			PageIndexTupleDelete(page, oldoffnum);
 		gistfillbuffer(page, itup, ntup, oldoffnum);
 
+		//Just as a temporary solution: always appending to last skiptuple
+		// in future we must choose apropriate place for placing new tuple among skiptuples
+		if (OffsetNumberIsValid(oldoffnum))
+		{
+			//here we must update nearest skiptuple if any
+			//and probably split it
+			OffsetNumber i, maxoff;
+			int counter = 0;
+			IndexTuple skiptuple = InvalidOffsetNumber;
+
+			maxoff = PageGetMaxOffsetNumber(page);
+
+			for (i = maxoff; i >= FirstOffsetNumber; i = OffsetNumberNext(i))
+			{
+				IndexTuple itup = (IndexTuple) PageGetItem(page, PageGetItemId(page, i));
+				if (GistTupleIsSkip(itup))
+				{
+					skiptuple = itup;
+					break;
+				}
+				counter++;
+			}
+			if(counter>SKIPTUPLE_TRESHOLD)
+			{
+				//Do a split
+			}
+			else
+			{
+				//Update skiptuple if any
+			}
+		}
+
 		MarkBufferDirty(buffer);
 
 		if (BufferIsValid(leftchildbuf))
