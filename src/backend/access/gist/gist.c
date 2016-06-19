@@ -21,6 +21,7 @@
 #include "utils/index_selfuncs.h"
 #include "utils/memutils.h"
 #include "utils/rel.h"
+#include "storage/bufpage.h"
 
 
 /* non-export function prototypes */
@@ -581,38 +582,39 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 		 * gistRedoPageUpdateRecord()
 		 */
 		if (OffsetNumberIsValid(oldoffnum))
-			PageIndexTupleDelete(page, oldoffnum);
-		gistfillbuffer(page, itup, ntup, oldoffnum);
-
-		//Just as a temporary solution: always appending to last skiptuple
-		// in future we must choose apropriate place for placing new tuple among skiptuples
-		if (OffsetNumberIsValid(oldoffnum))
 		{
-			//here we must update nearest skiptuple if any
-			//and probably split it
-			OffsetNumber i, maxoff;
-			int counter = 0;
-			IndexTuple skiptuple = InvalidOffsetNumber;
+			PageIndexTupleDelete(page, oldoffnum);
+			gistfillbuffer(page, itup, ntup, oldoffnum);
+		}
+		else
+		{
+			if(ntup!=1)
+				elog(ERROR,"skiptuples do not support many tups at once");// TODO
 
-			maxoff = PageGetMaxOffsetNumber(page);
+			OffsetNumber downlinkoffnum;
+			OffsetNumber skiptupleoffnum = InvalidOffsetNumber;
+			//if(PageGetMaxOffsetNumber(page)!=InvalidOffsetNumber)
+				//downlinkoffnum = gistchoose(rel, page, *itup, giststate, &skiptupleoffnum);
 
-			for (i = maxoff; i >= FirstOffsetNumber; i = OffsetNumberNext(i))
+			if(1||!OffsetNumberIsValid(skiptupleoffnum))//this page have no skiptuples
 			{
-				IndexTuple itup = (IndexTuple) PageGetItem(page, PageGetItemId(page, i));
-				if (GistTupleIsSkip(itup))
-				{
-					skiptuple = itup;
-					break;
-				}
-				counter++;
-			}
-			if(counter>SKIPTUPLE_TRESHOLD)
-			{
-				//Do a split
+				gistfillbuffer(page, itup, ntup, oldoffnum);
 			}
 			else
 			{
-				//Update skiptuple if any
+				IndexTuple newtup;
+				IndexTuple skiptup = (IndexTuple)PageGetItem(page, PageGetItemId(page, skiptupleoffnum));
+				GistTupleSetSkipCount(skiptup,GistTupleGetSkipCount(skiptup));
+				newtup = gistgetadjusted(rel, skiptup, *itup, giststate);
+				if(newtup)
+				{
+					if(IndexTupleSize(newtup)>IndexTupleSize(skiptup))
+						elog(ERROR,"skiptuples do not support extending keys as for now");// TODO
+					GistTupleSetSkip(newtup);
+					gistfillbuffer(page, &newtup, 1, skiptupleoffnum);
+				}
+
+				gistfillbuffer(page, itup, ntup, downlinkoffnum);
 			}
 		}
 
