@@ -11,41 +11,16 @@
  *			src/backend/access/gist/gistutil.c
  *-------------------------------------------------------------------------
  */
+#include "postgres.h"
 
-#include <access/gist.h>
-#include <access/gist_private.h>
-#include <access/itup.h>
-#include <access/reloptions.h>
-#include <access/tupdesc.h>
-#include <access/xlog.h>
-#include <access/xlogdefs.h>
-#include <c.h>
-#include <catalog/pg_class.h>
-#include <fmgr.h>
 #include <math.h>
-#include <pg_config_manual.h>
-#include <postgres.h>
-#include <postgres_ext.h>
-//#include <signal.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <storage/block.h>
-#include <storage/buf.h>
-#include <storage/bufmgr.h>
-#include <storage/bufpage.h>
-#include <storage/indexfsm.h>
-#include <storage/item.h>
-#include <storage/itemid.h>
-#include <storage/itemptr.h>
-#include <storage/lmgr.h>
-#include <storage/lockdefs.h>
-#include <storage/off.h>
-#include <string.h>
-#include <utils/builtins.h>
-#include <utils/elog.h>
-#include <utils/palloc.h>
-#include <utils/rel.h>
-#include <utils/relcache.h>
+
+#include "access/gist_private.h"
+#include "access/reloptions.h"
+#include "storage/indexfsm.h"
+#include "storage/lmgr.h"
+#include "utils/builtins.h"
+#include <signal.h>
 
 /*
  * Write itup vector to page, has no control of free space.
