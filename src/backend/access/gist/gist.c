@@ -574,8 +574,8 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 		/*
 		 * Enough space. We also get here if ntuples==0.
 		 */
-		START_CRIT_SECTION();
 
+		//TODO: Messed here with critsection start. refactor this somehow
 		/*
 		 * While we delete only one tuple at once we could mix calls
 		 * PageIndexTupleDelete() here and PageIndexMultiDelete() in
@@ -583,6 +583,7 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 		 */
 		if (OffsetNumberIsValid(oldoffnum))
 		{
+			START_CRIT_SECTION();
 			PageIndexTupleDelete(page, oldoffnum);
 			gistfillbuffer(page, itup, ntup, oldoffnum);
 		}
@@ -592,12 +593,15 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 				elog(ERROR,"skiptuples do not support many tups at once");// TODO
 
 			OffsetNumber downlinkoffnum;
-			OffsetNumber skiptupleoffnum = InvalidOffsetNumber;
-			//if(PageGetMaxOffsetNumber(page)!=InvalidOffsetNumber)
-				//downlinkoffnum = gistchoose(rel, page, *itup, giststate, &skiptupleoffnum);
+			OffsetNumber skiptupleoffnum;
+			skiptupleoffnum = InvalidOffsetNumber;
+			if(PageGetMaxOffsetNumber(page)!=InvalidOffsetNumber)
+				downlinkoffnum = gistchoose(rel, page, *itup, giststate, &skiptupleoffnum);
 
-			if(1||!OffsetNumberIsValid(skiptupleoffnum))//this page have no skiptuples
+
+			if(!OffsetNumberIsValid(skiptupleoffnum))//this page have no skiptuples
 			{
+				START_CRIT_SECTION();
 				gistfillbuffer(page, itup, ntup, oldoffnum);
 			}
 			else
@@ -606,11 +610,14 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 				IndexTuple skiptup = (IndexTuple)PageGetItem(page, PageGetItemId(page, skiptupleoffnum));
 				GistTupleSetSkipCount(skiptup,GistTupleGetSkipCount(skiptup));
 				newtup = gistgetadjusted(rel, skiptup, *itup, giststate);
+
+				START_CRIT_SECTION();
 				if(newtup)
 				{
 					if(IndexTupleSize(newtup)>IndexTupleSize(skiptup))
 						elog(ERROR,"skiptuples do not support extending keys as for now");// TODO
 					GistTupleSetSkip(newtup);
+					PageIndexTupleDelete(page, skiptupleoffnum);
 					gistfillbuffer(page, &newtup, 1, skiptupleoffnum);
 				}
 
