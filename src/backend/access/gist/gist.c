@@ -503,9 +503,44 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 		 * PageIndexTupleDelete() here and PageIndexMultiDelete() in
 		 * gistRedoPageUpdateRecord()
 		 */
+
+#ifdef OLDBEHAVIOR
 		if (OffsetNumberIsValid(oldoffnum))
 			PageIndexTupleDelete(page, oldoffnum);
 		gistfillbuffer(page, itup, ntup, InvalidOffsetNumber);
+#else
+		if (OffsetNumberIsValid(oldoffnum))
+		{
+			if(ntup==1)
+			{
+				ItemId		itemId;
+				Size		newsz;
+				Item		pageItem;
+				newsz = IndexTupleSize(*itup);
+				itemId = PageGetItemId(page,oldoffnum);
+				pageItem = PageGetItem(page,itemId);
+				if(IndexTupleSize(pageItem)==newsz)
+				{
+					memmove(pageItem,*itup,newsz);
+				}
+				else
+				{
+					PageIndexTupleDelete(page, oldoffnum);
+					gistfillbuffer(page, itup, ntup, InvalidOffsetNumber);
+				}
+			}
+			else
+			{
+				PageIndexTupleDelete(page, oldoffnum);
+				gistfillbuffer(page, itup, ntup, InvalidOffsetNumber);
+			}
+		}
+		else
+		{
+			gistfillbuffer(page, itup, ntup, InvalidOffsetNumber);
+		}
+#endif
+
 
 		MarkBufferDirty(buffer);
 
