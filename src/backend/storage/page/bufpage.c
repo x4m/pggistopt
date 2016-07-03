@@ -689,7 +689,7 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 	char	   *addr;
 	ItemId		tup;
 	int		size_diff;
-	Size		oldsize;
+	int		oldsize;
 	unsigned	offset;
 	int			newsize;
 	int			nline;
@@ -722,6 +722,7 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 	/*may have negative size here if new tuple is larger*/
 	size_diff = oldsize-newsize;
 	offset = ItemIdGetOffset(tup);
+	elog(WARNING,"old %u new %u",oldsize,newsize);
 
 	if (offset < phdr->pd_upper || (offset + size_diff) > phdr->pd_special ||
 		offset != MAXALIGN(offset) || size_diff != MAXALIGN(size_diff))
@@ -742,21 +743,20 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 	/* beginning of tuple space */
 	addr = (char *) page + phdr->pd_upper;
 
-	if (offset > phdr->pd_upper && size_diff!=0)
-		memmove(addr + size_diff, addr, (int) (offset - phdr->pd_upper));
-
-	/* adjust free space boundary pointers */
-	phdr->pd_upper += size_diff;
-
-	/*
-	 * Finally, we need to adjust the linp entries that remain.
-	 *
-	 * Anything that used to be before the deleted tuple's data was moved
-	 * forward by the size of the deleted tuple.
-	 */
 	if (size_diff!=0)
 	{
 		int			i;
+		memmove(addr + size_diff, addr, (int) (offset - phdr->pd_upper));
+
+		/* adjust free space boundary pointers */
+		phdr->pd_upper += size_diff;
+
+		/*
+		 * we need to adjust the linp entries that remain.
+		 *
+		 * Anything that used to be before the deleted tuple's data was moved
+		 * forward by the size of the deleted tuple.
+		 */
 
 		for (i = 1; i <= nline; i++)
 		{
@@ -769,8 +769,8 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 	}
 
 	/*now place new tuple on page*/
-	tup = PageGetItemId(page, offnum);
-	memmove(PageGetItem(page,tup),newtup,newsize);
+
+	memmove((char *) page + offset + size_diff,newtup,newsize);
 }
 
 /*
