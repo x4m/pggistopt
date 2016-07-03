@@ -674,6 +674,105 @@ PageGetHeapFreeSpace(Page page)
 }
 
 
+
+/*
+ * PageIndexTupleDelete
+ *
+ * This routine does the work of overwriting a tuple on an index page.
+ *
+ * Unlike heap pages, we keep compacted line pointers.
+ */
+void
+PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
+{
+	PageHeader	phdr = (PageHeader) page;
+	char	   *addr;
+	ItemId		tup;
+	int		size_diff;
+	Size		oldsize;
+	unsigned	offset;
+	int			newsize;
+	int			nline;
+
+	/*
+	 * As with PageIndexTupleDelete, paranoia is told to be justified.
+	 */
+	if (phdr->pd_lower < SizeOfPageHeaderData ||
+		phdr->pd_lower > phdr->pd_upper ||
+		phdr->pd_upper > phdr->pd_special ||
+		phdr->pd_special > BLCKSZ)
+		ereport(ERROR,
+				(errcode(ERRCODE_DATA_CORRUPTED),
+				 errmsg("corrupted page pointers: lower = %u, upper = %u, special = %u",
+						phdr->pd_lower, phdr->pd_upper, phdr->pd_special)));
+
+
+
+	nline = PageGetMaxOffsetNumber(page);
+	if ((int) offnum <= 0 || (int) offnum > nline)
+		elog(ERROR, "invalid index offnum: %u", offnum);
+
+	tup = PageGetItemId(page, offnum);
+
+
+	Assert(ItemIdHasStorage(tup));
+
+	newsize = IndexTupleSize(newtup);
+	oldsize = ItemIdGetLength(tup);
+	/*may have negative size here if new tuple is larger*/
+	size_diff = oldsize-newsize;
+	offset = ItemIdGetOffset(tup);
+
+	if (offset < phdr->pd_upper || (offset + size_diff) > phdr->pd_special ||
+		offset != MAXALIGN(offset) || size_diff != MAXALIGN(size_diff))
+		ereport(ERROR,
+				(errcode(ERRCODE_DATA_CORRUPTED),
+				 errmsg("corrupted item pointer: offset = %u, size = %u",
+						offset, (unsigned int) size_diff)));
+
+
+	/*
+	 * Now move everything between the old upper bound (beginning of tuple
+	 * space) and the end of the overwritten tuple forward, so that space in
+	 * the middle of the page is left free.  If we've just deleted the tuple
+	 * at the beginning of tuple space, then there's no need to do the copy
+	 * (and bcopy on some architectures SEGV's if asked to move zero bytes).
+	 */
+
+	/* beginning of tuple space */
+	addr = (char *) page + phdr->pd_upper;
+
+	if (offset > phdr->pd_upper && size_diff!=0)
+		memmove(addr + size_diff, addr, (int) (offset - phdr->pd_upper));
+
+	/* adjust free space boundary pointers */
+	phdr->pd_upper += size_diff;
+
+	/*
+	 * Finally, we need to adjust the linp entries that remain.
+	 *
+	 * Anything that used to be before the deleted tuple's data was moved
+	 * forward by the size of the deleted tuple.
+	 */
+	if (size_diff!=0)
+	{
+		int			i;
+
+		for (i = 1; i <= nline; i++)
+		{
+			ItemId		ii = PageGetItemId(phdr, i);
+
+			Assert(ItemIdHasStorage(ii));
+			if (ItemIdGetOffset(ii) <= offset)
+				ii->lp_off += size_diff;
+		}
+	}
+
+	/*now place new tuple on page*/
+	tup = PageGetItemId(page, offnum);
+	memmove(PageGetItem(page,tup),newtup,newsize);
+}
+
 /*
  * PageIndexTupleDelete
  *
