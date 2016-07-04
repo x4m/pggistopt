@@ -507,7 +507,7 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 		if (OffsetNumberIsValid(oldoffnum))
 		{
 			/*if we have just one tuple to update we replace it on-place on page*/
-			if(ntup==1)
+			if(ntup == 1)
 			{
 				PageIndexTupleOverwrite(page,oldoffnum,*itup);
 			}

@@ -674,7 +674,6 @@ PageGetHeapFreeSpace(Page page)
 }
 
 
-
 /*
  * PageIndexTupleDelete
  *
@@ -720,7 +719,7 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 	newsize = IndexTupleSize(newtup);
 	oldsize = ItemIdGetLength(tup);
 	/*may have negative size here if new tuple is larger*/
-	size_diff = oldsize-newsize;
+	size_diff = oldsize - newsize;
 	offset = ItemIdGetOffset(tup);
 
 
@@ -728,7 +727,7 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 		offset != MAXALIGN(offset) || size_diff != MAXALIGN(size_diff))
 		ereport(ERROR,
 				(errcode(ERRCODE_DATA_CORRUPTED),
-				 errmsg("corrupted item pointer: offset = %u, size = %u",
+				 errmsg("corrupted item offset: offset = %u, size = %u",
 						offset, (unsigned int) size_diff)));
 
 
@@ -744,7 +743,7 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 	addr = (char *) page + phdr->pd_upper;
 
 	/*skip modifications if nothing has to be changed actually*/
-	if (size_diff!=0)
+	if (size_diff != 0)
 	{
 		int			i;
 		memmove(addr + size_diff, addr, (int) (offset - phdr->pd_upper));
@@ -777,6 +776,7 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 	/*now place new tuple on page*/
 	memmove((char *) page + offset + size_diff, newtup, newsize);
 }
+
 
 /*
  * PageIndexTupleDelete
