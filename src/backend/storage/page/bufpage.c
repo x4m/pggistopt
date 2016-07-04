@@ -722,7 +722,7 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 	/*may have negative size here if new tuple is larger*/
 	size_diff = oldsize-newsize;
 	offset = ItemIdGetOffset(tup);
-	elog(WARNING,"old %u new %u",oldsize,newsize);
+
 
 	if (offset < phdr->pd_upper || (offset + size_diff) > phdr->pd_special ||
 		offset != MAXALIGN(offset) || size_diff != MAXALIGN(size_diff))
@@ -742,6 +742,8 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 
 	/* beginning of tuple space */
 	addr = (char *) page + phdr->pd_upper;
+
+	//elog(WARNING,"old %u new %u diff %d offset %u offnum %u movesize %d",oldsize,newsize,size_diff,offset, offnum,(int) (offset - phdr->pd_upper));
 
 	if (size_diff!=0)
 	{
@@ -768,9 +770,12 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 		}
 	}
 
-	/*now place new tuple on page*/
+	/*Fix updated tuple length*/
+	tup = PageGetItemId(page, offnum);
+	tup->lp_len = newsize;
 
-	memmove((char *) page + offset + size_diff,newtup,newsize);
+	/*now place new tuple on page*/
+	memmove((char *) page + offset + size_diff, newtup, newsize);
 }
 
 /*
