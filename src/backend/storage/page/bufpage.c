@@ -743,8 +743,7 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 	/* beginning of tuple space */
 	addr = (char *) page + phdr->pd_upper;
 
-	//elog(WARNING,"old %u new %u diff %d offset %u offnum %u movesize %d",oldsize,newsize,size_diff,offset, offnum,(int) (offset - phdr->pd_upper));
-
+	/*skip modifications if nothing has to be changed actually*/
 	if (size_diff!=0)
 	{
 		int			i;
@@ -768,11 +767,12 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 			if (ItemIdGetOffset(ii) <= offset)
 				ii->lp_off += size_diff;
 		}
+
+		/*Fix updated tuple length*/
+		tup = PageGetItemId(page, offnum);
+		tup->lp_len = newsize;
 	}
 
-	/*Fix updated tuple length*/
-	tup = PageGetItemId(page, offnum);
-	tup->lp_len = newsize;
 
 	/*now place new tuple on page*/
 	memmove((char *) page + offset + size_diff, newtup, newsize);
