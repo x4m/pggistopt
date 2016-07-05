@@ -80,8 +80,24 @@ gistRedoPageUpdateRecord(XLogReaderState *record)
 
 		page = (Page) BufferGetPage(buffer);
 
+		elog(WARNING,"gist replay");
+		/* In case of single tuple update GiST calls overwrite
+		 * In all other cases function gistplacetopage deletes
+		 * old tuples and place updated at the end
+		 *  */
+		if ( xldata->ntodelete == 1 && xldata->ntoinsert == 1 )
+		{
+			IndexTuple		itup;
+			OffsetNumber	offnum = *((OffsetNumber *) data);
+			data += sizeof(OffsetNumber);
+			itup = (IndexTuple) data;
+			PageIndexTupleOverwrite(page,offnum,itup);
+			data +=IndexTupleSize(itup);
+			Assert(data - begin == datalen);
+		}
+
 		/* Delete old tuples */
-		if (xldata->ntodelete > 0)
+		else if (xldata->ntodelete > 0)
 		{
 			OffsetNumber *todelete = (OffsetNumber *) data;
 
