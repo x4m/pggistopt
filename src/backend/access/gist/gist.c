@@ -503,27 +503,25 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 		 * PageIndexTupleDelete() here and PageIndexMultiDelete() in
 		 * gistRedoPageUpdateRecord()
 		 */
-
 		if (OffsetNumberIsValid(oldoffnum))
 		{
-			/*if we have just one tuple to update we replace it on-place on page*/
+			/* if we have just one tuple to update we replace it in-place on page */
 			if(ntup == 1)
 			{
-				PageIndexTupleOverwrite(page,oldoffnum,*itup);
+				PageIndexTupleOverwrite(page, oldoffnum, *itup);
 			}
 			else
 			{
-				/*this corner case is here to support mix calls case (see comment above)*/
+				/* this corner case is here to support mix calls case (see comment above) */
 				PageIndexTupleDelete(page, oldoffnum);
 				gistfillbuffer(page, itup, ntup, InvalidOffsetNumber);
 			}
 		}
 		else
 		{
-			/*just append all tuples at the end of a page*/
+			/* just append all tuples at the end of a page */
 			gistfillbuffer(page, itup, ntup, InvalidOffsetNumber);
 		}
-
 
 		MarkBufferDirty(buffer);
 

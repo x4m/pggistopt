@@ -675,7 +675,7 @@ PageGetHeapFreeSpace(Page page)
 
 
 /*
- * PageIndexTupleDelete
+ * PageIndexTupleOverwrite
  *
  * This routine does the work of overwriting a tuple on an index page.
  *
@@ -718,7 +718,7 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 
 	newsize = IndexTupleSize(newtup);
 	oldsize = ItemIdGetLength(tup);
-	/*may have negative size here if new tuple is larger*/
+	/* may have negative size here if new tuple is larger */
 	size_diff = oldsize - newsize;
 	offset = ItemIdGetOffset(tup);
 
@@ -742,7 +742,7 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 	/* beginning of tuple space */
 	addr = (char *) page + phdr->pd_upper;
 
-	/*skip modifications if nothing has to be changed actually*/
+	/* skip modifications if nothing has to be changed actually */
 	if (size_diff != 0)
 	{
 		int			i;
@@ -767,13 +767,13 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 				ii->lp_off += size_diff;
 		}
 
-		/*Fix updated tuple length*/
+		/* Fix updated tuple length */
 		tup = PageGetItemId(page, offnum);
 		tup->lp_len = newsize;
 	}
 
 
-	/*now place new tuple on page*/
+	/* now place new tuple on page */
 	memmove((char *) page + offset + size_diff, newtup, newsize);
 }
 
