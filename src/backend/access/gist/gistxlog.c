@@ -91,14 +91,15 @@ gistRedoPageUpdateRecord(XLogReaderState *record)
 			data += sizeof(OffsetNumber);
 			itup = (IndexTuple) data;
 			PageIndexTupleOverwrite(page,offnum,itup);
+			/* set up data pointer to skip PageAddItem loop */
 			data +=IndexTupleSize(itup);
 			Assert(data - begin == datalen);
+			/* correct insertion count for following assert check */
 			ninserted++;
 		}
-
-		/* Delete old tuples */
 		else if (xldata->ntodelete > 0)
 		{
+			/* if it's not in-place update we proceed with deleting old tuples */
 			OffsetNumber *todelete = (OffsetNumber *) data;
 
 			data += sizeof(OffsetNumber) * xldata->ntodelete;
@@ -131,6 +132,7 @@ gistRedoPageUpdateRecord(XLogReaderState *record)
 			}
 		}
 
+		/* check that buffer had exactly same count of tuples */
 		Assert(ninserted == xldata->ntoinsert);
 
 		PageSetLSN(page, lsn);

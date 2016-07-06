@@ -685,13 +685,14 @@ void
 PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 {
 	PageHeader	phdr = (PageHeader) page;
-	char	   *addr;
-	ItemId		tup;
-	int		size_diff;
-	int		oldsize;
+	char		*addr;
+	ItemId		tupid;
+	int			size_diff;
+	int			oldsize;
 	unsigned	offset;
 	int			newsize;
-	int			nline;
+	unsigned	alignednewsize;
+	int			itemcount;
 
 	/*
 	 * As with PageIndexTupleDelete, paranoia is told to be justified.
@@ -707,20 +708,22 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 
 
 
-	nline = PageGetMaxOffsetNumber(page);
-	if ((int) offnum <= 0 || (int) offnum > nline)
+	itemcount = PageGetMaxOffsetNumber(page);
+	if ((int) offnum <= 0 || (int) offnum > itemcount)
 		elog(ERROR, "invalid index offnum: %u", offnum);
 
-	tup = PageGetItemId(page, offnum);
+	tupid = PageGetItemId(page, offnum);
+	/* set the item pointer */
 
 
-	Assert(ItemIdHasStorage(tup));
+	Assert(ItemIdHasStorage(tupid));
 
 	newsize = IndexTupleSize(newtup);
-	oldsize = ItemIdGetLength(tup);
+	alignednewsize = MAXALIGN(newsize);
+	oldsize = ItemIdGetLength(tupid);
 	/* may have negative size here if new tuple is larger */
-	size_diff = oldsize - newsize;
-	offset = ItemIdGetOffset(tup);
+	size_diff = oldsize - alignednewsize;
+	offset = ItemIdGetOffset(tupid);
 
 
 	if (offset < phdr->pd_upper || (offset + size_diff) > phdr->pd_special ||
@@ -758,7 +761,7 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 		 * forward by the size of the deleted tuple.
 		 */
 
-		for (i = 1; i <= nline; i++)
+		for (i = FirstOffsetNumber; i <= itemcount; i++)
 		{
 			ItemId		ii = PageGetItemId(phdr, i);
 
@@ -766,15 +769,14 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 			if (ItemIdGetOffset(ii) <= offset)
 				ii->lp_off += size_diff;
 		}
-
-		/* Fix updated tuple length */
-		tup = PageGetItemId(page, offnum);
-		tup->lp_len = newsize;
 	}
+
+	/* Fix updated tuple length */
+	ItemIdSetNormal(tupid, offset + size_diff, newsize);
 
 
 	/* now place new tuple on page */
-	memmove((char *) page + offset + size_diff, newtup, newsize);
+	memmove(PageGetItem(page,tupid), newtup, newsize);
 }
 
 
