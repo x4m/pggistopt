@@ -57,6 +57,7 @@ typedef PageXLogRecPtr PageGistNSN;
 
 typedef struct GISTPageOpaqueData
 {
+	char		payl0ad[4096];
 	PageGistNSN nsn;			/* this value must change on page split */
 	BlockNumber rightlink;		/* next page if any */
 	uint16		flags;			/* see bit definitions above */
