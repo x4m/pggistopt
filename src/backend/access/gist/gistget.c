@@ -119,7 +119,11 @@ gistkillitems(IndexScanDesc scan)
  * so we don't need to worry about cleaning up allocated memory, either here
  * or in the implementation of any Consistent or Distance methods.
  */
-static bool
+#define NO 0
+#define MAYBE 1
+#define SURE 2
+
+static int
 gistindex_keytest(IndexScanDesc scan,
 				  IndexTuple tuple,
 				  Page page,
@@ -133,6 +137,7 @@ gistindex_keytest(IndexScanDesc scan,
 	int			keySize = scan->numberOfKeys;
 	double	   *distance_p;
 	Relation	r = scan->indexRelation;
+	bool		perfectMatch = false;
 
 	*recheck_p = false;
 	*recheck_distances_p = false;
@@ -150,7 +155,7 @@ gistindex_keytest(IndexScanDesc scan,
 			elog(ERROR, "invalid GiST tuple found on leaf page");
 		for (i = 0; i < scan->numberOfOrderBys; i++)
 			so->distances[i] = -get_float8_infinity();
-		return true;
+		return MAYBE;
 	}
 
 	/* Check whether it matches according to the Consistent functions */
@@ -175,18 +180,18 @@ gistindex_keytest(IndexScanDesc scan,
 			if (key->sk_flags & SK_SEARCHNULL)
 			{
 				if (GistPageIsLeaf(page) && !isNull)
-					return false;
+					return NO;
 			}
 			else
 			{
 				Assert(key->sk_flags & SK_SEARCHNOTNULL);
 				if (isNull)
-					return false;
+					return NO;
 			}
 		}
 		else if (isNull)
 		{
-			return false;
+			return NO;
 		}
 		else
 		{
@@ -222,7 +227,23 @@ gistindex_keytest(IndexScanDesc scan,
 									 PointerGetDatum(&recheck));
 
 			if (!DatumGetBool(test))
-				return false;
+				return NO;
+
+			if(GistPageIsLeaf(page)){
+				//For proof of concept use recheck field to signal to cube that we are doing SURE check
+				bool		userPerfectMatchFunctionInverse = false;
+				test = FunctionCall5Coll(&key->sk_func,
+													 key->sk_collation,
+													 PointerGetDatum(&de),
+													 key->sk_argument,
+													 Int16GetDatum(key->sk_strategy),
+													 ObjectIdGetDatum(key->sk_subtype),
+													 PointerGetDatum(&userPerfectMatchFunctionInverse));
+
+					if (DatumGetBool(test))
+						perfectMatch = true;
+			}
+
 			*recheck_p |= recheck;
 		}
 
@@ -292,7 +313,7 @@ gistindex_keytest(IndexScanDesc scan,
 		keySize--;
 	}
 
-	return true;
+	return perfectMatch?SURE:MAYBE;
 }
 
 /*

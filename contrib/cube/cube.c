@@ -338,19 +338,21 @@ g_cube_consistent(PG_FUNCTION_ARGS)
 	bool	   *recheck = (bool *) PG_GETARG_POINTER(4);
 	bool		res;
 
-	/* All cases served by this function are exact */
-	*recheck = false;
+
 
 	/*
 	 * if entry is not leaf, use g_cube_internal_consistent, else use
 	 * g_cube_leaf_consistent
 	 */
-	if (GIST_LEAF(entry))
+	if (GIST_LEAF(entry) || !*recheck)
 		res = g_cube_leaf_consistent(DatumGetNDBOX(entry->key),
 									 query, strategy);
 	else
 		res = g_cube_internal_consistent(DatumGetNDBOX(entry->key),
 										 query, strategy);
+
+	/* All cases served by this function are exact */
+		*recheck = false;
 
 	PG_FREE_IF_COPY(query, 1);
 	PG_RETURN_BOOL(res);
