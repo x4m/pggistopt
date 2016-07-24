@@ -298,6 +298,10 @@ PageAddItem(Page page,
 
 	/* set the item pointer */
 	ItemIdSetNormal(itemId, upper, size);
+	if(!is_heap){
+		ItemPointerData ipd = ((IndexTuple)item)->t_tid;
+		itemId->t_tid = *((ItemPointerDataSurrogate*)&ipd);
+	}
 
 	/*
 	 * Items normally contain no uninitialized bytes.  Core bufpage consumers

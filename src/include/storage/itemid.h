@@ -14,6 +14,7 @@
 #ifndef ITEMID_H
 #define ITEMID_H
 
+
 /*
  * An item pointer (also called line pointer) on a buffer page
  *
@@ -21,11 +22,23 @@
  * storage on the page.  By convention, lp_len == 0 in every item pointer
  * that does not have storage, independently of its lp_flags state.
  */
+
+typedef struct
+	{
+		struct
+		{
+			uint16		bi_hi;
+			uint16		bi_lo;
+		} ip_blkid;
+		uint16 ip_posid;
+	} ItemPointerDataSurrogate;
+
 typedef struct ItemIdData
 {
 	unsigned	lp_off:15,		/* offset to tuple (from start of page) */
 				lp_flags:2,		/* state of item pointer, see below */
 				lp_len:15;		/* byte length of tuple */
+	ItemPointerDataSurrogate t_tid;
 } ItemIdData;
 
 typedef ItemIdData *ItemId;

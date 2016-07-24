@@ -425,7 +425,7 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 		if(scan->ignore_killed_tuples && ItemIdIsDead(iid))
 			continue;
 
-		it = (IndexTuple) PageGetItem(page, iid);
+
 		/*
 		 * Must call gistindex_keytest in tempCxt, and clean up any leftover
 		 * junk afterward.
@@ -438,6 +438,7 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 		}
 		else
 		{
+			it = (IndexTuple) PageGetItem(page, iid);
 			match = gistindex_keytest(scan, it, page, i,
 									  &recheck, &recheck_distances);
 		}
@@ -510,7 +511,7 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 			else
 			{
 				/* Creating index-page GISTSearchItem */
-				item->blkno = ItemPointerGetBlockNumber(&it->t_tid);
+				item->blkno = ItemPointerGetBlockNumber(((ItemPointerData*)(&(iid->t_tid))));
 				item->sureScan = match == SURE;
 
 				/*
