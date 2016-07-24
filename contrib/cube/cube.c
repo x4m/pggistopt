@@ -338,8 +338,6 @@ g_cube_consistent(PG_FUNCTION_ARGS)
 	int	   *recheck = (int *) PG_GETARG_POINTER(4);
 	bool		res;
 
-
-
 	/*
 	 * if entry is not leaf, use g_cube_internal_consistent, else use
 	 * g_cube_leaf_consistent

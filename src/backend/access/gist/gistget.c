@@ -229,7 +229,7 @@ gistindex_keytest(IndexScanDesc scan,
 			if (!DatumGetBool(test))
 				return NO;
 
-			if(GistPageIsLeaf(page)){
+			if(!GistPageIsLeaf(page)){
 				//For proof of concept use recheck field to signal to cube that we are doing SURE check
 				int		signallingRecheck = 0xFF;
 				test = FunctionCall5Coll(&key->sk_func,
@@ -241,7 +241,9 @@ gistindex_keytest(IndexScanDesc scan,
 													 PointerGetDatum(&signallingRecheck));
 
 					if (DatumGetBool(test))
+					{
 						perfectMatch = true;
+					}
 			}
 
 			*recheck_p |= (bool)recheck;
