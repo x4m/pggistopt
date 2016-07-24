@@ -171,6 +171,14 @@ pages. The caller must then call gistplacetopage() on the parent page to
 insert the downlink tuples. The parent page that holds the downlink to
 the child might have migrated as a result of concurrent splits of the
 parent, gistfindCorrectParent() is used to find the parent page.
+gistplacetopage gets list of tuples and offnum as a parametes. If passed
+offnum is invalid, all tuples will be apended at the end of a page. If list
+contains many tuples and offnum is valid, offnum`ed tuple will be deleted from
+the page and all tuples from list appended at the end of a page. Append is 
+performed by PageAddItem routine. If list contains exactly one tuple and offnum
+ is valid, tuple on page is replaced with PageIndexTupleOverwrite routine, 
+which shows significant performance improvement in case when old tuple's size 
+matches size of a new tuple.
 
 Splitting the root page works slightly differently. At root split,
 gistplacetopage() allocates the new child pages and replaces the old root
