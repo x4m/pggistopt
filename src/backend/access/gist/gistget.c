@@ -196,7 +196,7 @@ gistindex_keytest(IndexScanDesc scan,
 		else
 		{
 			Datum		test;
-			bool		recheck;
+			int		recheck;
 			GISTENTRY	de;
 
 			gistdentryinit(giststate, key->sk_attno - 1, &de,
@@ -216,7 +216,7 @@ gistindex_keytest(IndexScanDesc scan,
 			 * We initialize the recheck flag to true (the safest assumption)
 			 * in case the Consistent function forgets to set it.
 			 */
-			recheck = true;
+			recheck = 1;
 
 			test = FunctionCall5Coll(&key->sk_func,
 									 key->sk_collation,
@@ -231,20 +231,20 @@ gistindex_keytest(IndexScanDesc scan,
 
 			if(GistPageIsLeaf(page)){
 				//For proof of concept use recheck field to signal to cube that we are doing SURE check
-				bool		userPerfectMatchFunctionInverse = false;
+				int		signallingRecheck = 0xFF;
 				test = FunctionCall5Coll(&key->sk_func,
 													 key->sk_collation,
 													 PointerGetDatum(&de),
 													 key->sk_argument,
 													 Int16GetDatum(key->sk_strategy),
 													 ObjectIdGetDatum(key->sk_subtype),
-													 PointerGetDatum(&userPerfectMatchFunctionInverse));
+													 PointerGetDatum(&signallingRecheck));
 
 					if (DatumGetBool(test))
 						perfectMatch = true;
 			}
 
-			*recheck_p |= recheck;
+			*recheck_p |= (bool)recheck;
 		}
 
 		key++;
@@ -273,7 +273,7 @@ gistindex_keytest(IndexScanDesc scan,
 		else
 		{
 			Datum		dist;
-			bool		recheck;
+			int		recheck;
 			GISTENTRY	de;
 
 			gistdentryinit(giststate, key->sk_attno - 1, &de,
@@ -296,7 +296,7 @@ gistindex_keytest(IndexScanDesc scan,
 			 * version 9.5; distance functions written before that won't know
 			 * about the flag, but are expected to never be lossy.
 			 */
-			recheck = false;
+			recheck = 0;
 			dist = FunctionCall5Coll(&key->sk_func,
 									 key->sk_collation,
 									 PointerGetDatum(&de),
@@ -304,7 +304,7 @@ gistindex_keytest(IndexScanDesc scan,
 									 Int16GetDatum(key->sk_strategy),
 									 ObjectIdGetDatum(key->sk_subtype),
 									 PointerGetDatum(&recheck));
-			*recheck_distances_p |= recheck;
+			*recheck_distances_p |= (bool)recheck;
 			*distance_p = DatumGetFloat8(dist);
 		}
 
@@ -412,7 +412,7 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 	{
 		ItemId      iid = PageGetItemId(page, i);
 		IndexTuple	it;
-		bool		match;
+		int		match;
 		bool		recheck;
 		bool		recheck_distances;
 
@@ -430,8 +430,15 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 		 */
 		oldcxt = MemoryContextSwitchTo(so->giststate->tempCxt);
 
-		match = gistindex_keytest(scan, it, page, i,
-								  &recheck, &recheck_distances);
+		if(pageItem->sureScan)
+		{
+			match = SURE;
+		}
+		else
+		{
+			match = gistindex_keytest(scan, it, page, i,
+									  &recheck, &recheck_distances);
+		}
 
 		MemoryContextSwitchTo(oldcxt);
 		MemoryContextReset(so->giststate->tempCxt);
@@ -502,6 +509,7 @@ gistScanPage(IndexScanDesc scan, GISTSearchItem *pageItem, double *myDistances,
 			{
 				/* Creating index-page GISTSearchItem */
 				item->blkno = ItemPointerGetBlockNumber(&it->t_tid);
+				item->sureScan = match == SURE;
 
 				/*
 				 * LSN of current page is lsn of parent page for child. We

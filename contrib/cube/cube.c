@@ -335,7 +335,7 @@ g_cube_consistent(PG_FUNCTION_ARGS)
 	StrategyNumber strategy = (StrategyNumber) PG_GETARG_UINT16(2);
 
 	/* Oid		subtype = PG_GETARG_OID(3); */
-	bool	   *recheck = (bool *) PG_GETARG_POINTER(4);
+	int	   *recheck = (int *) PG_GETARG_POINTER(4);
 	bool		res;
 
 
@@ -344,7 +344,7 @@ g_cube_consistent(PG_FUNCTION_ARGS)
 	 * if entry is not leaf, use g_cube_internal_consistent, else use
 	 * g_cube_leaf_consistent
 	 */
-	if (GIST_LEAF(entry) || !*recheck)
+	if (GIST_LEAF(entry) || *recheck==0xFF)
 		res = g_cube_leaf_consistent(DatumGetNDBOX(entry->key),
 									 query, strategy);
 	else
@@ -352,7 +352,7 @@ g_cube_consistent(PG_FUNCTION_ARGS)
 										 query, strategy);
 
 	/* All cases served by this function are exact */
-		*recheck = false;
+		*recheck = 0;
 
 	PG_FREE_IF_COPY(query, 1);
 	PG_RETURN_BOOL(res);
