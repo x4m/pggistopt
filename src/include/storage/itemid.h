@@ -24,14 +24,22 @@
  */
 
 typedef struct
+{
+	uint16		bi_hi;
+	uint16		bi_lo;
+} BlockIdDataSurrogate;
+
+typedef struct
 	{
-		struct
-		{
-			uint16		bi_hi;
-			uint16		bi_lo;
-		} ip_blkid;
+		BlockIdDataSurrogate ip_blkid;
 		uint16 ip_posid;
-	} ItemPointerDataSurrogate;
+	}
+/* If compiler understands packed and aligned pragmas, use those */
+#if defined(pg_attribute_packed) && defined(pg_attribute_aligned)
+pg_attribute_packed()
+pg_attribute_aligned(2)
+#endif
+ItemPointerDataSurrogate;
 
 typedef struct ItemIdData
 {
