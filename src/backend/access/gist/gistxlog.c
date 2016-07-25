@@ -90,7 +90,7 @@ gistRedoPageUpdateRecord(XLogReaderState *record)
 			OffsetNumber	offnum = *((OffsetNumber *) data);
 			data += sizeof(OffsetNumber);
 			itup = (IndexTuple) data;
-			PageIndexTupleOverwrite(page,offnum,itup);
+			PageIndexTupleOverwrite(page,offnum,itup,IndexTupleSize(itup));
 			/* set up data pointer to skip PageAddItem loop */
 			data +=IndexTupleSize(itup);
 			Assert(data - begin == datalen);

@@ -192,10 +192,7 @@ brin_xlog_samepage_update(XLogReaderState *record)
 		if (PageGetMaxOffsetNumber(page) + 1 < offnum)
 			elog(PANIC, "brin_xlog_samepage_update: invalid max offset number");
 
-		PageIndexDeleteNoCompact(page, &offnum, 1);
-		offnum = PageAddItem(page, (Item) brintuple, tuplen, offnum, true, false);
-		if (offnum == InvalidOffsetNumber)
-			elog(PANIC, "brin_xlog_samepage_update: failed to add tuple");
+		PageIndexTupleOverwrite(page,offnum,(Item)brintuple, tuplen);
 
 		PageSetLSN(page, lsn);
 		MarkBufferDirty(buffer);

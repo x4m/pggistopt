@@ -682,7 +682,7 @@ PageGetHeapFreeSpace(Page page)
  * Unlike heap pages, we keep compacted line pointers.
  */
 void
-PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
+PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup, Size newsize)
 {
 	PageHeader	phdr = (PageHeader) page;
 	char		*addr;
@@ -690,7 +690,6 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 	int			size_diff;
 	int			oldsize;
 	unsigned	offset;
-	int			newsize;
 	unsigned	alignednewsize;
 	int			itemcount;
 
@@ -718,7 +717,6 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 
 	Assert(ItemIdHasStorage(tupid));
 
-	newsize = IndexTupleSize(newtup);
 	alignednewsize = MAXALIGN(newsize);
 	oldsize = ItemIdGetLength(tupid);
 	/* may have negative size here if new tuple is larger */
@@ -765,7 +763,7 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup)
 		{
 			ItemId		ii = PageGetItemId(phdr, i);
 
-			Assert(ItemIdHasStorage(ii));
+			//Assert(ItemIdHasStorage(ii));
 			if (ItemIdGetOffset(ii) <= offset)
 				ii->lp_off += size_diff;
 		}

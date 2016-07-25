@@ -178,10 +178,9 @@ brin_doupdate(Relation idxrel, BlockNumber pagesPerRange,
 		}
 
 		START_CRIT_SECTION();
-		PageIndexDeleteNoCompact(oldpage, &oldoff, 1);
-		if (PageAddItem(oldpage, (Item) newtup, newsz, oldoff, true,
-						false) == InvalidOffsetNumber)
-			elog(ERROR, "failed to add BRIN tuple");
+
+		PageIndexTupleOverwrite(oldpage,oldoff,(Item)newtup,newsz);
+
 		MarkBufferDirty(oldbuf);
 
 		/* XLOG stuff */
