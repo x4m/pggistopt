@@ -763,7 +763,6 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup, Size newsiz
 		{
 			ItemId		ii = PageGetItemId(phdr, i);
 
-			Assert(ItemIdHasStorage(ii));
 			if (ItemIdGetOffset(ii) <= offset)
 				ii->lp_off += size_diff;
 		}
