@@ -84,15 +84,15 @@ gistRedoPageUpdateRecord(XLogReaderState *record)
 		 * In all other cases function gistplacetopage deletes
 		 * old tuples and place updated at the end
 		 *  */
-		if ( xldata->ntodelete == 1 && xldata->ntoinsert == 1 )
+		if (xldata->ntodelete == 1 && xldata->ntoinsert == 1)
 		{
 			IndexTuple		itup;
 			OffsetNumber	offnum = *((OffsetNumber *) data);
 			data += sizeof(OffsetNumber);
 			itup = (IndexTuple) data;
-			PageIndexTupleOverwrite(page,offnum,(Item)itup,IndexTupleSize(itup));
+			PageIndexTupleOverwrite(page, offnum, (Item)itup, IndexTupleSize(itup));
 			/* set up data pointer to skip PageAddItem loop */
-			data +=IndexTupleSize(itup);
+			data += IndexTupleSize(itup);
 			Assert(data - begin == datalen);
 			/* correct insertion count for following assert check */
 			ninserted++;
@@ -102,7 +102,7 @@ gistRedoPageUpdateRecord(XLogReaderState *record)
 			/* if it's not in-place update we proceed with deleting old tuples */
 			OffsetNumber *todelete = (OffsetNumber *) data;
 
-			data += sizeof(OffsetNumber) * xldata->ntodelete;
+			data += sizeof(OffsetNumber) *xldata->ntodelete;
 
 			PageIndexMultiDelete(page, todelete, xldata->ntodelete);
 			if (GistPageIsLeaf(page))
