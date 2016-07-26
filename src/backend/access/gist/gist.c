@@ -508,7 +508,7 @@ gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 			/* if we have just one tuple to update we replace it in-place on page */
 			if(ntup == 1)
 			{
-				PageIndexTupleOverwrite(page, oldoffnum, *itup);
+				PageIndexTupleOverwrite(page, oldoffnum, (Item)*itup,IndexTupleSize(*itup));
 			}
 			else
 			{
