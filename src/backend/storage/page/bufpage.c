@@ -763,7 +763,13 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup, Size newsiz
 		{
 			ItemId		ii = PageGetItemId(phdr, i);
 
-			Assert(ItemIdHasStorage(ii));
+			/* Normally here was following assertion
+			 * Assert(ItemIdHasStorage(ii));
+			 * This assertion was introduced in PageIndexTupleDelete
+			 * But if this function will be used from BRIN index
+			 * this assertion will fail. Thus, here we do not check that
+			 * item has the storage.
+			 * */
 			if (ItemIdGetOffset(ii) <= offset)
 				ii->lp_off += size_diff;
 		}
