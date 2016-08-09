@@ -719,13 +719,15 @@ PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup, Size newsiz
 
 	alignednewsize = MAXALIGN(newsize);
 	oldsize = ItemIdGetLength(tupid);
+	/* tuples on a page are always maxaligned */
+	oldsize = MAXALIGN(oldsize);
 	/* may have negative size here if new tuple is larger */
 	size_diff = oldsize - alignednewsize;
 	offset = ItemIdGetOffset(tupid);
 
 
 	if (offset < phdr->pd_upper || (offset + size_diff) > phdr->pd_special ||
-		offset != MAXALIGN(offset) || size_diff != MAXALIGN(size_diff))
+		offset != MAXALIGN(offset) || (offset + size_diff) < phdr->pd_lower)
 		ereport(ERROR,
 				(errcode(ERRCODE_DATA_CORRUPTED),
 				 errmsg("corrupted item offset: offset = %u, size = %u",
