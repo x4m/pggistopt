@@ -1,0 +1,69 @@
+Timing is on.
+SET
+Time: 0,269 ms
+SET
+Time: 0,246 ms
+Time: 0,179 ms
+CREATE EXTENSION
+Time: 18,322 ms
+BEGIN
+Time: 0,192 ms
+ setseed 
+---------
+ 
+(1 row)
+
+Time: 10,676 ms
+SELECT 100
+Time: 36,303 ms
+CREATE INDEX
+Time: 15,201 ms
+INSERT 0 10000000
+Time: 108955,244 ms
+SELECT 100
+Time: 8,232 ms
+CREATE INDEX
+Time: 3,873 ms
+INSERT 0 10000000
+Time: 121367,473 ms
+SELECT 100
+Time: 511,145 ms
+CREATE INDEX
+Time: 4,674 ms
+INSERT 0 10000000
+Time: 110319,340 ms
+ group_id 
+----------
+(0 rows)
+
+Time: 2767,586 ms
+ group_id 
+----------
+(0 rows)
+
+Time: 2268,025 ms
+ group_id 
+----------
+(0 rows)
+
+Time: 2260,513 ms
+ pg_size_pretty 
+----------------
+ 317 MB
+(1 row)
+
+Time: 4,978 ms
+ pg_size_pretty 
+----------------
+ 509 MB
+(1 row)
+
+Time: 0,200 ms
+ pg_size_pretty 
+----------------
+ 399 MB
+(1 row)
+
+Time: 0,163 ms
+ROLLBACK
+Time: 365,602 ms
