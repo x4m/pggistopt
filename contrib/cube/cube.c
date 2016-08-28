@@ -425,8 +425,8 @@ float pack_float(float actualValue, int realm)
 {
 	// two bits for realm, other for value
 	int realmAjustment = *((int*)&actualValue)/4;
-	int realCode = INT32_MAX/realm; // we have 4 realms
-	return realCode + realmAjustment;
+	int realCode = INT32_MAX/realm + realmAjustment; // we have 4 realms
+	return *((float*)&realCode);
 }
 
 /*
