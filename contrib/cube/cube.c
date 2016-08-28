@@ -446,17 +446,16 @@ g_cube_penalty(PG_FUNCTION_ARGS)
 	float	   *result = (float *) PG_GETARG_POINTER(2);
 	NDBOX	   *ud;
 	double		tmp1,
-				tmp2,
-				tmp3;
+				tmp2;
 
 	ud = cube_union_v0(DatumGetNDBOX(origentry->key),
 					   DatumGetNDBOX(newentry->key));
 	rt_cube_size(ud, &tmp1);
-	tmp3=tmp1;
 	rt_cube_size(DatumGetNDBOX(origentry->key), &tmp2);
 	*result = (float) (tmp1 - tmp2);
 	if(*result == 0)
 	{
+		double tmp3 = tmp1;
 		rt_cube_edge(ud, &tmp1);
 		rt_cube_edge(DatumGetNDBOX(origentry->key), &tmp2);
 		*result = (float) (tmp1 - tmp2);
