@@ -463,11 +463,11 @@ g_cube_penalty(PG_FUNCTION_ARGS)
 		{
 			if(tmp3!=0)
 			{
-				*result = pack_float(tmp3,2);
+				*result = pack_float(tmp3,0);
 			}
 			else
 			{
-				*result = pack_float(tmp1,2);
+				*result = pack_float(tmp1,1);
 			}
 		}
 		else
