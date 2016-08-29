@@ -96,6 +96,7 @@ bool		cube_contains_v0(NDBOX *a, NDBOX *b);
 bool		cube_overlap_v0(NDBOX *a, NDBOX *b);
 NDBOX	   *cube_union_v0(NDBOX *a, NDBOX *b);
 void		rt_cube_size(NDBOX *a, double *sz);
+void		rt_cube_edge(NDBOX *a, double *sz);
 NDBOX	   *g_cube_binary_union(NDBOX *r1, NDBOX *r2, int *sizep);
 bool		g_cube_leaf_consistent(NDBOX *key, NDBOX *query, StrategyNumber strategy);
 bool		g_cube_internal_consistent(NDBOX *key, NDBOX *query, StrategyNumber strategy);
@@ -420,6 +421,13 @@ g_cube_decompress(PG_FUNCTION_ARGS)
 	PG_RETURN_POINTER(entry);
 }
 
+float pack_float(float actualValue, int realm)
+{
+	// two bits for realm, other for value
+	int realmAjustment = *((int*)&actualValue)/4;
+	int realCode = realm * (INT32_MAX/4) + realmAjustment; // we have 4 realms
+	return *((float*)&realCode);
+}
 
 /*
 ** The GiST Penalty method for boxes
@@ -428,6 +436,11 @@ g_cube_decompress(PG_FUNCTION_ARGS)
 Datum
 g_cube_penalty(PG_FUNCTION_ARGS)
 {
+	// REALM 0: No extension is required, volume is zerom return edge
+	// REALM 1: No extension is required, return nonzero volume
+	// REALM 2: Volume extension is zero, return nonzero edge extension
+	// REALM 3: Volume extension is nonzero, return it
+
 	GISTENTRY  *origentry = (GISTENTRY *) PG_GETARG_POINTER(0);
 	GISTENTRY  *newentry = (GISTENTRY *) PG_GETARG_POINTER(1);
 	float	   *result = (float *) PG_GETARG_POINTER(2);
@@ -440,6 +453,32 @@ g_cube_penalty(PG_FUNCTION_ARGS)
 	rt_cube_size(ud, &tmp1);
 	rt_cube_size(DatumGetNDBOX(origentry->key), &tmp2);
 	*result = (float) (tmp1 - tmp2);
+	if(*result == 0)
+	{
+		double tmp3 = tmp1;
+		rt_cube_edge(ud, &tmp1);
+		rt_cube_edge(DatumGetNDBOX(origentry->key), &tmp2);
+		*result = (float) (tmp1 - tmp2);
+		if(*result == 0)
+		{
+			if(tmp3!=0)
+			{
+				*result = pack_float(tmp3,0);
+			}
+			else
+			{
+				*result = pack_float(tmp1,1);
+			}
+		}
+		else
+		{
+			*result = pack_float(*result,2);
+		}
+	}
+	else
+	{
+		*result = pack_float(*result,3);
+	}
 
 	/*
 	 * fprintf(stderr, "penalty\n"); fprintf(stderr, "\t%g\n", *result);
@@ -887,6 +926,20 @@ rt_cube_size(NDBOX *a, double *size)
 		*size = 1.0;
 		for (i = 0; i < DIM(a); i++)
 			*size = (*size) * Abs(UR_COORD(a, i) - LL_COORD(a, i));
+	}
+	return;
+}
+
+void
+rt_cube_edge(NDBOX *a, double *size)
+{
+	int			i;
+	*size = 0.0;
+
+	if (a != (NDBOX *) NULL)
+	{
+		for (i = 0; i < DIM(a); i++)
+			*size += Abs(UR_COORD(a, i) - LL_COORD(a, i));
 	}
 	return;
 }
