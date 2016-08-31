@@ -91,22 +91,22 @@ PG_FUNCTION_INFO_V1(cube_enlarge);
 /*
 ** For internal use only
 */
-int32		cube_cmp_v0(NDBOX *a, NDBOX *b);
-bool		cube_contains_v0(NDBOX *a, NDBOX *b);
-bool		cube_overlap_v0(NDBOX *a, NDBOX *b);
-NDBOX	   *cube_union_v0(NDBOX *a, NDBOX *b);
-float		pack_float(float actualValue, int realm);
+static inline int32		cube_cmp_v0(NDBOX *a, NDBOX *b);
+static inline bool		cube_contains_v0(NDBOX *a, NDBOX *b);
+static inline bool		cube_overlap_v0(NDBOX *a, NDBOX *b);
+static inline NDBOX	   *cube_union_v0(NDBOX *a, NDBOX *b);
+static inline float		pack_float(float actualValue, int realm);
 static inline void		rt_cube_size(NDBOX *a, double *sz);
 static inline void		rt_cube_edge(NDBOX *a, double *sz);
-NDBOX	   *g_cube_binary_union(NDBOX *r1, NDBOX *r2, int *sizep);
-bool		g_cube_leaf_consistent(NDBOX *key, NDBOX *query, StrategyNumber strategy);
-bool		g_cube_internal_consistent(NDBOX *key, NDBOX *query, StrategyNumber strategy);
+static inline NDBOX	   *g_cube_binary_union(NDBOX *r1, NDBOX *r2, int *sizep);
+static inline bool		g_cube_leaf_consistent(NDBOX *key, NDBOX *query, StrategyNumber strategy);
+static inline bool		g_cube_internal_consistent(NDBOX *key, NDBOX *query, StrategyNumber strategy);
 
 /*
 ** Auxiliary funxtions
 */
-static double distance_1D(double a1, double a2, double b1, double b2);
-static bool cube_is_point_internal(NDBOX *cube);
+static inline double distance_1D(double a1, double a2, double b1, double b2);
+static inline bool cube_is_point_internal(NDBOX *cube);
 
 
 /*****************************************************************************
@@ -422,7 +422,8 @@ g_cube_decompress(PG_FUNCTION_ARGS)
 	PG_RETURN_POINTER(entry);
 }
 
-float pack_float(float actualValue, int realm)
+static inline float
+pack_float(float actualValue, int realm)
 {
 	// two bits for realm, other for value
 	int realmAjustment = *((int*)&actualValue)/4;
@@ -666,7 +667,7 @@ g_cube_same(PG_FUNCTION_ARGS)
 /*
 ** SUPPORT ROUTINES
 */
-bool
+static inline bool
 g_cube_leaf_consistent(NDBOX *key,
 					   NDBOX *query,
 					   StrategyNumber strategy)
@@ -698,7 +699,7 @@ g_cube_leaf_consistent(NDBOX *key,
 	return (retval);
 }
 
-bool
+static inline bool
 g_cube_internal_consistent(NDBOX *key,
 						   NDBOX *query,
 						   StrategyNumber strategy)
@@ -728,7 +729,7 @@ g_cube_internal_consistent(NDBOX *key,
 	return (retval);
 }
 
-NDBOX *
+static inline NDBOX *
 g_cube_binary_union(NDBOX *r1, NDBOX *r2, int *sizep)
 {
 	NDBOX	   *retval;
@@ -741,7 +742,7 @@ g_cube_binary_union(NDBOX *r1, NDBOX *r2, int *sizep)
 
 
 /* cube_union_v0 */
-NDBOX *
+static inline NDBOX *
 cube_union_v0(NDBOX *a, NDBOX *b)
 {
 	int			i;
@@ -948,7 +949,7 @@ rt_cube_edge(NDBOX *a, double *size)
 
 /* make up a metric in which one box will be 'lower' than the other
    -- this can be useful for sorting and to determine uniqueness */
-int32
+static inline int32
 cube_cmp_v0(NDBOX *a, NDBOX *b)
 {
 	int			i;
@@ -1135,7 +1136,7 @@ cube_ge(PG_FUNCTION_ARGS)
 
 /* Contains */
 /* Box(A) CONTAINS Box(B) IFF pt(A) < pt(B) */
-bool
+static inline bool
 cube_contains_v0(NDBOX *a, NDBOX *b)
 {
 	int			i;
@@ -1205,7 +1206,7 @@ cube_contained(PG_FUNCTION_ARGS)
 
 /* Overlap */
 /* Box(A) Overlap Box(B) IFF (pt(a)LL < pt(B)UR) && (pt(b)LL < pt(a)UR) */
-bool
+static inline bool
 cube_overlap_v0(NDBOX *a, NDBOX *b)
 {
 	int			i;
