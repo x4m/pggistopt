@@ -446,20 +446,21 @@ g_cube_penalty(PG_FUNCTION_ARGS)
 	GISTENTRY  *origentry = (GISTENTRY *) PG_GETARG_POINTER(0);
 	GISTENTRY  *newentry = (GISTENTRY *) PG_GETARG_POINTER(1);
 	float	   *result = (float *) PG_GETARG_POINTER(2);
+	NDBOX	   *originbox = DatumGetNDBOX(origentry->key);
+	NDBOX	   *newbox = DatumGetNDBOX(newentry->key);
 	NDBOX	   *ud;
-	double		tmp1,
-				tmp2;
+	double		tmp1;
+	double		tmp2;
 
-	ud = cube_union_v0(DatumGetNDBOX(origentry->key),
-					   DatumGetNDBOX(newentry->key));
+	ud = cube_union_v0(originbox, newbox);
 	rt_cube_size(ud, &tmp1);
-	rt_cube_size(DatumGetNDBOX(origentry->key), &tmp2);
+	rt_cube_size(originbox, &tmp2);
 	*result = (float) (tmp1 - tmp2);
 	if(*result == 0)
 	{
 		double tmp3 = tmp1;
 		rt_cube_edge(ud, &tmp1);
-		rt_cube_edge(DatumGetNDBOX(origentry->key), &tmp2);
+		rt_cube_edge(originbox, &tmp2);
 		*result = (float) (tmp1 - tmp2);
 		if(*result == 0)
 		{
