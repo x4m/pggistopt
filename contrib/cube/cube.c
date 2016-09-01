@@ -425,9 +425,10 @@ g_cube_decompress(PG_FUNCTION_ARGS)
 static inline float
 pack_float(float actualValue, int realm)
 {
-	// two bits for realm, other for value
+	/* two bits for realm, other for value	*/
+	/* we have 4 realms 					*/
 	int realmAjustment = *((int*)&actualValue)/4;
-	int realCode = realm * (INT32_MAX/4) + realmAjustment; // we have 4 realms
+	int realCode = realm * (INT32_MAX/4) + realmAjustment;
 	return *((float*)&realCode);
 }
 
