@@ -438,10 +438,10 @@ pack_float(float actualValue, int realm)
 Datum
 g_cube_penalty(PG_FUNCTION_ARGS)
 {
-	// REALM 0: No extension is required, volume is zerom return edge
-	// REALM 1: No extension is required, return nonzero volume
-	// REALM 2: Volume extension is zero, return nonzero edge extension
-	// REALM 3: Volume extension is nonzero, return it
+	/* REALM 0: No extension is required, volume is zero, return edge	*/
+	/* REALM 1: No extension is required, return nonzero volume			*/
+	/* REALM 2: Volume extension is zero, return nonzero edge extension	*/
+	/* REALM 3: Volume extension is nonzero, return it					*/
 
 	GISTENTRY  *origentry = (GISTENTRY *) PG_GETARG_POINTER(0);
 	GISTENTRY  *newentry = (GISTENTRY *) PG_GETARG_POINTER(1);
@@ -455,36 +455,34 @@ g_cube_penalty(PG_FUNCTION_ARGS)
 	rt_cube_size(ud, &tmp1);
 	rt_cube_size(DatumGetNDBOX(origentry->key), &tmp2);
 	*result = (float) (tmp1 - tmp2);
-	if(*result == 0)
+
+	if( *result == 0 )
 	{
-		double tmp3 = tmp1;
+		double tmp3 = tmp1; /* remember entry volume */
 		rt_cube_edge(ud, &tmp1);
 		rt_cube_edge(DatumGetNDBOX(origentry->key), &tmp2);
 		*result = (float) (tmp1 - tmp2);
-		if(*result == 0)
+		if( *result == 0 )
 		{
-			if(tmp3!=0)
+			if( tmp3 != 0 )
 			{
-				*result = pack_float(tmp3,0);
+				*result = pack_float(tmp3, 1); /* REALM 1 */
 			}
 			else
 			{
-				*result = pack_float(tmp1,1);
+				*result = pack_float(tmp1, 0); /* REALM 0 */
 			}
 		}
 		else
 		{
-			*result = pack_float(*result,2);
+			*result = pack_float(*result, 2); /* REALM 2 */
 		}
 	}
 	else
 	{
-		*result = pack_float(*result,3);
+		*result = pack_float(*result, 3); /* REALM 3 */
 	}
 
-	/*
-	 * fprintf(stderr, "penalty\n"); fprintf(stderr, "\t%g\n", *result);
-	 */
 	PG_RETURN_FLOAT8(*result);
 }
 
