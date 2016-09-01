@@ -91,22 +91,22 @@ PG_FUNCTION_INFO_V1(cube_enlarge);
 /*
 ** For internal use only
 */
-static inline int32		cube_cmp_v0(NDBOX *a, NDBOX *b);
-static inline bool		cube_contains_v0(NDBOX *a, NDBOX *b);
-static inline bool		cube_overlap_v0(NDBOX *a, NDBOX *b);
-static inline NDBOX	   *cube_union_v0(NDBOX *a, NDBOX *b);
-static inline float		pack_float(float actualValue, int realm);
-static inline void		rt_cube_size(NDBOX *a, double *sz);
-static inline void		rt_cube_edge(NDBOX *a, double *sz);
-static inline NDBOX	   *g_cube_binary_union(NDBOX *r1, NDBOX *r2, int *sizep);
-static inline bool		g_cube_leaf_consistent(NDBOX *key, NDBOX *query, StrategyNumber strategy);
-static inline bool		g_cube_internal_consistent(NDBOX *key, NDBOX *query, StrategyNumber strategy);
+static int32		cube_cmp_v0(NDBOX *a, NDBOX *b);
+static bool		cube_contains_v0(NDBOX *a, NDBOX *b);
+static bool		cube_overlap_v0(NDBOX *a, NDBOX *b);
+static NDBOX	   *cube_union_v0(NDBOX *a, NDBOX *b);
+static float		pack_float(float actualValue, int realm);
+static void		rt_cube_size(NDBOX *a, double *sz);
+static void		rt_cube_edge(NDBOX *a, double *sz);
+static NDBOX	   *g_cube_binary_union(NDBOX *r1, NDBOX *r2, int *sizep);
+static bool		g_cube_leaf_consistent(NDBOX *key, NDBOX *query, StrategyNumber strategy);
+static bool		g_cube_internal_consistent(NDBOX *key, NDBOX *query, StrategyNumber strategy);
 
 /*
 ** Auxiliary funxtions
 */
-static inline double distance_1D(double a1, double a2, double b1, double b2);
-static inline bool cube_is_point_internal(NDBOX *cube);
+static double distance_1D(double a1, double a2, double b1, double b2);
+static bool cube_is_point_internal(NDBOX *cube);
 
 
 /*****************************************************************************
@@ -433,7 +433,7 @@ g_cube_decompress(PG_FUNCTION_ARGS)
  * greater than float b, integer A with same bit representation as a is greater
  * than integer B with same bits as b.
  */
-static inline float
+static float
 pack_float(float actualValue, int realm)
 {
 	/* two bits for realm, others for value	*/
@@ -677,7 +677,7 @@ g_cube_same(PG_FUNCTION_ARGS)
 /*
 ** SUPPORT ROUTINES
 */
-static inline bool
+static bool
 g_cube_leaf_consistent(NDBOX *key,
 					   NDBOX *query,
 					   StrategyNumber strategy)
@@ -709,7 +709,7 @@ g_cube_leaf_consistent(NDBOX *key,
 	return (retval);
 }
 
-static inline bool
+static bool
 g_cube_internal_consistent(NDBOX *key,
 						   NDBOX *query,
 						   StrategyNumber strategy)
@@ -739,7 +739,7 @@ g_cube_internal_consistent(NDBOX *key,
 	return (retval);
 }
 
-static inline NDBOX *
+static NDBOX *
 g_cube_binary_union(NDBOX *r1, NDBOX *r2, int *sizep)
 {
 	NDBOX	   *retval;
@@ -752,7 +752,7 @@ g_cube_binary_union(NDBOX *r1, NDBOX *r2, int *sizep)
 
 
 /* cube_union_v0 */
-static inline NDBOX *
+static NDBOX *
 cube_union_v0(NDBOX *a, NDBOX *b)
 {
 	int			i;
@@ -926,7 +926,7 @@ cube_size(PG_FUNCTION_ARGS)
 	PG_RETURN_FLOAT8(result);
 }
 
-static inline void
+static void
 rt_cube_size(NDBOX *a, double *size)
 {
 	int			i;
@@ -942,7 +942,7 @@ rt_cube_size(NDBOX *a, double *size)
 	return;
 }
 
-static inline void
+static void
 rt_cube_edge(NDBOX *a, double *size)
 {
 	int			i;
@@ -959,7 +959,7 @@ rt_cube_edge(NDBOX *a, double *size)
 
 /* make up a metric in which one box will be 'lower' than the other
    -- this can be useful for sorting and to determine uniqueness */
-static inline int32
+static int32
 cube_cmp_v0(NDBOX *a, NDBOX *b)
 {
 	int			i;
@@ -1146,7 +1146,7 @@ cube_ge(PG_FUNCTION_ARGS)
 
 /* Contains */
 /* Box(A) CONTAINS Box(B) IFF pt(A) < pt(B) */
-static inline bool
+static bool
 cube_contains_v0(NDBOX *a, NDBOX *b)
 {
 	int			i;
@@ -1216,7 +1216,7 @@ cube_contained(PG_FUNCTION_ARGS)
 
 /* Overlap */
 /* Box(A) Overlap Box(B) IFF (pt(a)LL < pt(B)UR) && (pt(b)LL < pt(a)UR) */
-static inline bool
+static bool
 cube_overlap_v0(NDBOX *a, NDBOX *b)
 {
 	int			i;
