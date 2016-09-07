@@ -433,7 +433,7 @@ pack_float(float actualValue, int realm)
 	if( realm == 0 )
 		min = 0;
 	/* squeeze the actual value between min and max */
-	return ( min + actualValue * max / 2 / FLT_MAX);
+	return ( min + (actualValue * ( max - min ) / FLT_MAX));
 }
 
 /*
