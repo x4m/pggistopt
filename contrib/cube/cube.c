@@ -423,17 +423,29 @@ g_cube_decompress(PG_FUNCTION_ARGS)
 }
 /*
  * Function to pack floats of different realms
+ * This function serves to pack bit flags inside float type
+ * Resulted value represent can be from four different "realms"
+ * Every value from realm 3 is greater than any value from realms 2,1 and 0.
+ * Every value from realm 2 is less than every value from realm 3 and greater
+ * than any value from realm 1 and 0, and so on. Values from the same realm
+ * loose two bits of precision. This technique is possible due to floating
+ * point numbers specification according to IEEE 754: exponent bits are highest
+ * (excluding sign bits, but here penalty is always positive). If float a is
+ * greater than float b, integer A with same bit representation as a is greater
+ * than integer B with same bits as b.
  */
 static float
 pack_float(float actualValue, int realm)
 {
-	double max,min;
-	max = FLT_MAX / ( 8 >> realm );
-	min = FLT_MAX / ( 16 >> realm );
-	if( realm == 0 )
-		min = 0;
-	/* squeeze the actual value between min and max */
-	return ( min + (actualValue * ( max - min ) / FLT_MAX));
+	union
+	{
+		float fp;
+		int32 bits;
+	} buffer;
+
+	buffer.fp = actualValue;
+	buffer.bits = (buffer.bits >> 2) + (INT32_MAX / 4) * realm;
+	return buffer.fp;
 }
 
 /*
