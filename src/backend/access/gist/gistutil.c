@@ -675,7 +675,8 @@ gistpenalty(GISTSTATE *giststate, int attno,
 						  PointerGetDatum(orig),
 						  PointerGetDatum(add),
 						  PointerGetDatum(&penalty));
-		/* disallow negative or NaN penalty
+		/*
+		 * disallow negative or NaN penalty
 		 * NaN is considered float max value - i.e. most inapropriate fit
 		 * negative is considered penaltiless fix
 		 */
