@@ -676,7 +676,9 @@ gistpenalty(GISTSTATE *giststate, int attno,
 						  PointerGetDatum(add),
 						  PointerGetDatum(&penalty));
 		/* disallow negative or NaN penalty */
-		if (isnan(penalty) || penalty < 0.0)
+		if (isnan(penalty))
+			penalty = FLT_MAX;
+		if (penalty < 0.0)
 			penalty = 0.0;
 	}
 	else if (isNullOrig && isNullAdd)
