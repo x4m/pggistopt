@@ -95,7 +95,7 @@ static int32		cube_cmp_v0(NDBOX *a, NDBOX *b);
 static bool		cube_contains_v0(NDBOX *a, NDBOX *b);
 static bool		cube_overlap_v0(NDBOX *a, NDBOX *b);
 static NDBOX	   *cube_union_v0(NDBOX *a, NDBOX *b);
-static float		pack_float(float actualValue, int realm);
+static float		pack_float(float value, int realm);
 static void		rt_cube_size(NDBOX *a, double *sz);
 static void		rt_cube_edge(NDBOX *a, double *sz);
 static NDBOX	   *g_cube_binary_union(NDBOX *r1, NDBOX *r2, int *sizep);
@@ -435,17 +435,19 @@ g_cube_decompress(PG_FUNCTION_ARGS)
  * than integer B with same bits as b.
  */
 static float
-pack_float(float actualValue, int realm)
+pack_float(const float value, const int realm)
 {
-	union
-	{
-		float fp;
-		int32 bits;
-	} buffer;
+  union {
+    float f;
+    struct { unsigned value:31, sign:1; } vbits;
+    struct { unsigned value:29, realm:2, sign:1; } rbits;
+  } a;
 
-	buffer.fp = actualValue;
-	buffer.bits = (buffer.bits >> 2) + (INT32_MAX / 4) * realm;
-	return buffer.fp;
+  a.f = value;
+  a.rbits.value = a.vbits.value >> 2;
+  a.rbits.realm = realm;
+
+  return a.f;
 }
 
 /*
