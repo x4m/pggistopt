@@ -95,7 +95,9 @@ static int32		cube_cmp_v0(NDBOX *a, NDBOX *b);
 static bool		cube_contains_v0(NDBOX *a, NDBOX *b);
 static bool		cube_overlap_v0(NDBOX *a, NDBOX *b);
 static NDBOX	   *cube_union_v0(NDBOX *a, NDBOX *b);
+#ifdef __STDC_IEC_559__
 static float		pack_float(float value, int realm);
+#endif
 static void		rt_cube_size(NDBOX *a, double *sz);
 static void		rt_cube_edge(NDBOX *a, double *sz);
 static NDBOX	   *g_cube_binary_union(NDBOX *r1, NDBOX *r2, int *sizep);
@@ -434,6 +436,7 @@ g_cube_decompress(PG_FUNCTION_ARGS)
  * greater than float b, integer A with same bit representation as a is greater
  * than integer B with same bits as b.
  */
+#ifdef __STDC_IEC_559__
 static float
 pack_float(const float value, const int realm)
 {
@@ -449,6 +452,7 @@ pack_float(const float value, const int realm)
 
   return a.f;
 }
+#endif
 
 /*
 ** The GiST Penalty method for boxes
@@ -475,6 +479,8 @@ g_cube_penalty(PG_FUNCTION_ARGS)
 	rt_cube_size(DatumGetNDBOX(origentry->key), &tmp2);
 	*result = (float) (tmp1 - tmp2);
 
+#ifdef __STDC_IEC_559__
+	/* Realm tricks are in use only in case of IEEE754 support(IEC 60559)*/
 	if( *result == 0 )
 	{
 		double tmp3 = tmp1; /* remember entry volume */
@@ -501,6 +507,7 @@ g_cube_penalty(PG_FUNCTION_ARGS)
 	{
 		*result = pack_float(*result, 3); /* REALM 3 */
 	}
+#endif
 
 	PG_RETURN_FLOAT8(*result);
 }
