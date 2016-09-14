@@ -675,8 +675,14 @@ gistpenalty(GISTSTATE *giststate, int attno,
 						  PointerGetDatum(orig),
 						  PointerGetDatum(add),
 						  PointerGetDatum(&penalty));
-		/* disallow negative or NaN penalty */
-		if (isnan(penalty) || penalty < 0.0)
+		/*
+		 * disallow negative or NaN penalty
+		 * NaN is considered float infinity - i.e. most inapropriate fit
+		 * negative is considered penaltiless fix
+		 */
+		if (isnan(penalty))
+			penalty = get_float4_infinity();
+		if (penalty < 0.0)
 			penalty = 0.0;
 	}
 	else if (isNullOrig && isNullAdd)
