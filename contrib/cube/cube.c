@@ -18,6 +18,7 @@
 
 #include "cubedata.h"
 
+
 PG_MODULE_MAGIC;
 
 /*
@@ -25,6 +26,15 @@ PG_MODULE_MAGIC;
  */
 #define ARRPTR(x)  ( (double *) ARR_DATA_PTR(x) )
 #define ARRNELEMS(x)  ArrayGetNItems( ARR_NDIM(x), ARR_DIMS(x))
+
+/*
+ * If IEEE754 floats are fully supported we use advanced penalty
+ * which takes into account cube volume, perimeter and tend to favor
+ * small nodes over big ones. For more info see g_cube_penalty implementation
+ */
+#ifdef __STDC_IEC_559__
+#define ADVANCED_PENALTY
+#endif
 
 /*
 ** Input/Output routines
@@ -95,11 +105,11 @@ static int32		cube_cmp_v0(NDBOX *a, NDBOX *b);
 static bool		cube_contains_v0(NDBOX *a, NDBOX *b);
 static bool		cube_overlap_v0(NDBOX *a, NDBOX *b);
 static NDBOX	   *cube_union_v0(NDBOX *a, NDBOX *b);
-#ifdef __STDC_IEC_559__
+#ifdef ADVANCED_PENALTY
 static float		pack_float(float value, int realm);
+static void		rt_cube_edge(NDBOX *a, double *sz);
 #endif
 static void		rt_cube_size(NDBOX *a, double *sz);
-static void		rt_cube_edge(NDBOX *a, double *sz);
 static NDBOX	   *g_cube_binary_union(NDBOX *r1, NDBOX *r2, int *sizep);
 static bool		g_cube_leaf_consistent(NDBOX *key, NDBOX *query, StrategyNumber strategy);
 static bool		g_cube_internal_consistent(NDBOX *key, NDBOX *query, StrategyNumber strategy);
@@ -436,7 +446,7 @@ g_cube_decompress(PG_FUNCTION_ARGS)
  * greater than float b, integer A with same bit representation as a is greater
  * than integer B with same bits as b.
  */
-#ifdef __STDC_IEC_559__
+#ifdef ADVANCED_PENALTY
 static float
 pack_float(const float value, const int realm)
 {
@@ -461,11 +471,6 @@ pack_float(const float value, const int realm)
 Datum
 g_cube_penalty(PG_FUNCTION_ARGS)
 {
-	/* REALM 0: No extension is required, volume is zero, return edge	*/
-	/* REALM 1: No extension is required, return nonzero volume			*/
-	/* REALM 2: Volume extension is zero, return nonzero edge extension	*/
-	/* REALM 3: Volume extension is nonzero, return it					*/
-
 	GISTENTRY  *origentry = (GISTENTRY *) PG_GETARG_POINTER(0);
 	GISTENTRY  *newentry = (GISTENTRY *) PG_GETARG_POINTER(1);
 	float	   *result = (float *) PG_GETARG_POINTER(2);
@@ -479,8 +484,14 @@ g_cube_penalty(PG_FUNCTION_ARGS)
 	rt_cube_size(DatumGetNDBOX(origentry->key), &tmp2);
 	*result = (float) (tmp1 - tmp2);
 
-#ifdef __STDC_IEC_559__
-	/* Realm tricks are in use only in case of IEEE754 support(IEC 60559)*/
+#ifdef ADVANCED_PENALTY
+	/* Realm tricks are used only in case of IEEE754 support(IEC 60559) */
+
+	/* REALM 0: No extension is required, volume is zero, return edge	*/
+	/* REALM 1: No extension is required, return nonzero volume			*/
+	/* REALM 2: Volume extension is zero, return nonzero edge extension	*/
+	/* REALM 3: Volume extension is nonzero, return it					*/
+
 	if( *result == 0 )
 	{
 		double tmp3 = tmp1; /* remember entry volume */
@@ -956,6 +967,7 @@ rt_cube_size(NDBOX *a, double *size)
 	return;
 }
 
+#ifdef ADVANCED_PENALTY
 static void
 rt_cube_edge(NDBOX *a, double *size)
 {
@@ -970,6 +982,7 @@ rt_cube_edge(NDBOX *a, double *size)
 	*size = result;
 	return;
 }
+#endif
 
 /* make up a metric in which one box will be 'lower' than the other
    -- this can be useful for sorting and to determine uniqueness */
