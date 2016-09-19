@@ -11,7 +11,6 @@
 #include <float.h>
 #include <math.h>
 
-#include "access/gist.h"
 #include "access/stratnum.h"
 #include "utils/array.h"
 #include "utils/builtins.h"
@@ -451,8 +450,8 @@ static int
 compare_boxes(const void* ap, const void* bp, const void *argsp)
 {
 	double sa = 0, sb = 0;
-	int a = (int*)ap;
-	int b = (int*)bp;
+	int a = *((int*)ap);
+	int b = *((int*)bp);
 	SplitSortArgs* args = (SplitSortArgs*)argsp;
 	NDBOX *abox = DatumGetNDBOX(args->vector->vector[a].key);
 	NDBOX *bbox = DatumGetNDBOX(args->vector->vector[b].key);

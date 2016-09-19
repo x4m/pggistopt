@@ -1,4 +1,5 @@
 /* contrib/cube/cubedata.h */
+#include "access/gist.h"
 
 #define CUBE_MAX_DIM (100)
 
