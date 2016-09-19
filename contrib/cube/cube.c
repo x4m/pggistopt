@@ -540,7 +540,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	for (i = 0; i < n; i++)
 	{
 		numbers[i] = i;
-		sortargs.vector[i] = DatumGetNDBOX(entryvec->vector[i].key);
+		sortargs.vector[i] = DatumGetNDBOX(entryvec->vector[i + FirstOffsetNumber].key);
 		if (DIM(sortargs.vector[i]) > dim)
 			dim = DIM(sortargs.vector[i]);
 	}
