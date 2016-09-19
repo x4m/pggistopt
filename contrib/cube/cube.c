@@ -447,11 +447,46 @@ g_cube_penalty(PG_FUNCTION_ARGS)
 	PG_RETURN_FLOAT8(*result);
 }
 
+static int
+compare_boxes(const void* ap, const void* bp, const void *argsp)
+{
+	double sa = 0, sb = 0;
+	int a = (int*)ap;
+	int b = (int*)bp;
+	SplitSortArgs* args = (SplitSortArgs*)argsp;
+	NDBOX *abox = DatumGetNDBOX(args->vector->vector[a].key);
+	NDBOX *bbox = DatumGetNDBOX(args->vector->vector[b].key);
+	int axis = args->axis;
 
+	if(DIM(abox)<axis)
+	{
+		if (args->compare_edge == 0)
+			sa = LL_COORD(abox, axis);
+		else if (args->compare_edge == 1)
+			sa = UR_COORD(abox, axis);
+		else
+			sa = LL_COORD(abox, axis) + UR_COORD(abox, axis);
+	}
+
+
+	if (DIM(bbox)<axis)
+	{
+		if (args->compare_edge == 0)
+			sb = LL_COORD(bbox, axis);
+		else if (args->compare_edge == 1)
+			sb = UR_COORD(bbox, axis);
+		else
+			sb = LL_COORD(bbox, axis) + UR_COORD(bbox, axis);
+	}
+
+	if (sa == sb) 
+		return 0;
+	return (sa>sb) ? 1 : -1;
+}
 
 /*
 ** The GiST PickSplit method for boxes
-** We use Guttman's poly time split algorithm
+** We use RR*-tree split algorithm
 */
 Datum
 g_cube_picksplit(PG_FUNCTION_ARGS)
