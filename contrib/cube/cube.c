@@ -447,7 +447,7 @@ g_cube_penalty(PG_FUNCTION_ARGS)
 }
 
 static int
-compare_boxes(const void* ap, const void* bp, const void *argsp)
+compare_boxes(const void* ap, const void* bp, void *argsp)
 {
 	double sa = 0, sb = 0;
 	int a = *((int*)ap);
@@ -551,7 +551,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 		OffsetNumber endBorder = n - startBorder;
 		sortargs.axis = i;
 		sortargs.compare_edge = 0;
-		qsort_arg(numbers, n, sizeof(int), compare_boxes, &sortargs);
+		qsort_arg(numbers, n, sizeof(int), compare_boxes, (void*)&sortargs);
 
 		for (border = startBorder; border < endBorder; border++)
 		{
@@ -562,7 +562,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 				bestBorder = border;
 				if(i != bestaxis)
 				{
-					memmove(best_numbers, numbers, n * sizeof(int);
+					memmove(best_numbers, numbers, n * sizeof(int));
 					bestaxis = i;
 				}
 			}
