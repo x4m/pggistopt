@@ -66,5 +66,5 @@ typedef struct SplitSortArgs
 {
 	int axis;
 	int compare_edge; // 0 - lowes, 1 - uppers, 2 - middles
-	GistEntryVector *vector;
+	NDBOX **vector;
 } SplitSortArgs;

@@ -453,8 +453,8 @@ compare_boxes(const void* ap, const void* bp, const void *argsp)
 	int a = *((int*)ap);
 	int b = *((int*)bp);
 	SplitSortArgs* args = (SplitSortArgs*)argsp;
-	NDBOX *abox = DatumGetNDBOX(args->vector->vector[a].key);
-	NDBOX *bbox = DatumGetNDBOX(args->vector->vector[b].key);
+	NDBOX *abox = args->vector[a];
+	NDBOX *bbox = args->vector[b];
 	int axis = args->axis;
 
 	if(DIM(abox)<axis)
@@ -483,6 +483,11 @@ compare_boxes(const void* ap, const void* bp, const void *argsp)
 	return (sa>sb) ? 1 : -1;
 }
 
+double g_split_goal(NDBOX **args, int n, int border)
+{
+	return 0;
+}
+
 /*
 ** The GiST PickSplit method for boxes
 ** We use RR*-tree split algorithm
@@ -492,6 +497,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 {
 	GistEntryVector *entryvec = (GistEntryVector *) PG_GETARG_POINTER(0);
 	GIST_SPLITVEC *v = (GIST_SPLITVEC *) PG_GETARG_POINTER(1);
+
 	OffsetNumber i,
 				j;
 	NDBOX	   *datum_alpha,
@@ -517,6 +523,54 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	OffsetNumber *left,
 			   *right;
 	OffsetNumber maxoff;
+
+
+
+	SplitSortArgs sortargs;
+	int n = entryvec->n - FirstOffsetNumber;
+	int *numbers = (int*)palloc(n*sizeof(int));
+	int *best_numbers = (int*)palloc(n*sizeof(int));
+	double bestw = DBL_MAX;
+	int bestBorder = -1;
+	int dim = 0;
+	int bestaxis = -1;
+
+	sortargs.vector = (NDBOX**)palloc(n * sizeof(NDBOX*));
+
+	for (i = 0; i < n; i++)
+	{
+		numbers[i] = i;
+		sortargs.vector[i] = DatumGetNDBOX(entryvec->vector[i].key);
+		dim = max(DIM(sortargs.vector[i]), dim);
+	}
+
+	for (i = 0; i < dim; i++)
+	{
+		OffsetNumber border;
+		OffsetNumber startBorder = floor(0.2 * n);
+		OffsetNumber endBorder = n - startBorder;
+		sortargs.axis = i;
+		sortargs.compare_edge = 0;
+		qsort_arg(numbers, n, sizeof(int), compare_boxes, &sortargs);
+
+		for (border = startBorder; border < endBorder; border++)
+		{
+			double w = g_split_goal(sortargs.vector, n, border);
+			if(w < bestw)
+			{
+				bestw = w;
+				bestBorder = border;
+				if(i != bestaxis)
+				{
+					memmove(best_numbers, numbers, n * sizeof(int);
+					bestaxis = i;
+				}
+			}
+		}
+	}
+
+
+
 
 	/*
 	 * fprintf(stderr, "picksplit\n");
