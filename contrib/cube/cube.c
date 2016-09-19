@@ -541,7 +541,8 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	{
 		numbers[i] = i;
 		sortargs.vector[i] = DatumGetNDBOX(entryvec->vector[i].key);
-		dim = max(DIM(sortargs.vector[i]), dim);
+		if (DIM(sortargs.vector[i]) > dim)
+			dim = DIM(sortargs.vector[i]);
 	}
 
 	for (i = 0; i < dim; i++)
