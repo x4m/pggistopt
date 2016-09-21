@@ -486,10 +486,10 @@ compare_boxes(const void* ap, const void* bp, void *argsp)
 	return (sa>sb) ? 1 : -1;
 }
 
-double g_split_goal(NDBOX **args, int n, int border, double max_edge)
+double g_split_goal(NDBOX **args, int dim, int n, int border, double max_edge)
 {
-	NDBOX *left = cube_union_n(args, border);
-	NDBOX *right = cube_union_n(args + border, n - border);
+	NDBOX *left = cube_union_n(args, dim, border);
+	NDBOX *right = cube_union_n(args + border, dim, n - border);
 	double wg, ledge, redge;
 	double nd = n; // to avoid overflow in huge pages
 	double wf = nd * nd / 4 - (nd - border) * (nd - border);
@@ -579,7 +579,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 
 		for (border = startBorder; border < endBorder; border++)
 		{
-			double w = g_split_goal(sortargs.vector, n, border,max_edge);
+			double w = g_split_goal(sortargs.vector, dim, n, border,max_edge);
 			if(w < bestw)
 			{
 				bestw = w;
@@ -597,7 +597,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 
 		for (border = startBorder; border < endBorder; border++)
 		{
-			double w = g_split_goal(sortargs.vector, n, border, max_edge);
+			double w = g_split_goal(sortargs.vector, dim, n, border, max_edge);
 			if (w < bestw)
 			{
 				bestw = w;
