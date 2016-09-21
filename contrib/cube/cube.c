@@ -891,7 +891,7 @@ cube_union_n(NDBOX **a, int dim, int n)
 	for (i = 0; i < dim; i++)
 	{
 		result->x[i] = DBL_MAX;
-		result->x[i + DIM(a)] = DBL_MIN;
+		result->x[i + dim] = DBL_MIN;
 	}
 
 	for (o = 0; o < n; o++)
@@ -910,10 +910,10 @@ cube_union_n(NDBOX **a, int dim, int n)
 		}
 	for (i = 0; i < dim; i++)
 	{
-		if(result->x[i] == DBL_MAX && result->x[i + DIM(a)] == DBL_MIN)
+		if(result->x[i] == DBL_MAX && result->x[i + dim] == DBL_MIN)
 		{
 			result->x[i] = 0;
-			result->x[i + DIM(a)] = 0;
+			result->x[i + dim] = 0;
 		}
 	}
 
