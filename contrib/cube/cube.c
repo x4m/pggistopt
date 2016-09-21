@@ -897,13 +897,13 @@ cube_union_n(NDBOX **a, int dim, int n)
 	for (o = 0; o < n; o++)
 		for (i = 0; i < dim; i++)
 		{
-			if (DIM(a[o]) >= i)
+			if (DIM(a[o]) <= i)
 				break;
 			result->x[i] = Min(
 				Min(LL_COORD(a[o], i), UR_COORD(a[o], i)),
 				LL_COORD(result, i)
 				);
-			result->x[i + DIM(a)] = Max(
+			result->x[i + dim] = Max(
 				Max(LL_COORD(a[o], i), UR_COORD(a[o], i)),
 				UR_COORD(result, i)
 				);
