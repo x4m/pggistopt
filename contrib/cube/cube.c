@@ -94,6 +94,8 @@ int32		cube_cmp_v0(NDBOX *a, NDBOX *b);
 bool		cube_contains_v0(NDBOX *a, NDBOX *b);
 bool		cube_overlap_v0(NDBOX *a, NDBOX *b);
 NDBOX	   *cube_union_v0(NDBOX *a, NDBOX *b);
+NDBOX	   *cube_union_n(NDBOX **a, int dim, int n);
+static void		rt_cube_edge(NDBOX *a, double *sz);
 void		rt_cube_size(NDBOX *a, double *sz);
 NDBOX	   *g_cube_binary_union(NDBOX *r1, NDBOX *r2, int *sizep);
 bool		g_cube_leaf_consistent(NDBOX *key, NDBOX *query, StrategyNumber strategy);
@@ -551,6 +553,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 		OffsetNumber startBorder = floor(0.2 * n);
 		OffsetNumber endBorder = n - startBorder;
 		sortargs.axis = i;
+
 		sortargs.compare_edge = 0;
 		qsort_arg(numbers, n, sizeof(int), compare_boxes, (void*)&sortargs);
 
@@ -562,6 +565,24 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 				bestw = w;
 				bestBorder = border;
 				if(i != bestaxis)
+				{
+					memmove(best_numbers, numbers, n * sizeof(int));
+					bestaxis = i;
+				}
+			}
+		}
+
+		sortargs.compare_edge = 1;
+		qsort_arg(numbers, n, sizeof(int), compare_boxes, (void*)&sortargs);
+
+		for (border = startBorder; border < endBorder; border++)
+		{
+			double w = g_split_goal(sortargs.vector, n, border);
+			if (w < bestw)
+			{
+				bestw = w;
+				bestBorder = border;
+				if (i != bestaxis)
 				{
 					memmove(best_numbers, numbers, n * sizeof(int));
 					bestaxis = i;
@@ -854,6 +875,62 @@ cube_union_v0(NDBOX *a, NDBOX *b)
 	return (result);
 }
 
+
+NDBOX *
+cube_union_n(NDBOX **a, int dim, int n)
+{
+	int			i, o;
+	NDBOX	   *result;
+	int			size;
+
+	size = CUBE_SIZE(dim);
+	result = palloc0(size);
+	SET_VARSIZE(result, size);
+	SET_DIM(result, dim);
+
+	for (i = 0; i < dim; i++)
+	{
+		result->x[i] = DBL_MAX;
+		result->x[i + DIM(a)] = DBL_MIN;
+	}
+
+	for (o = 0; o < n; o++)
+		for (i = 0; i < dim; i++)
+		{
+			if (DIM(a[o]) >= i)
+				break;
+			result->x[i] = Min(
+				Min(LL_COORD(a[o], i), UR_COORD(a[o], i)),
+				LL_COORD(result, i)
+				);
+			result->x[i + DIM(a)] = Max(
+				Max(LL_COORD(a[o], i), UR_COORD(a[o], i)),
+				UR_COORD(result, i)
+				);
+		}
+	for (i = 0; i < dim; i++)
+	{
+		if(result->x[i] == DBL_MAX && result->x[i + DIM(a)] == DBL_MIN)
+		{
+			result->x[i] = 0;
+			result->x[i + DIM(a)] = 0;
+		}
+	}
+
+	/*
+	* Check if the result was in fact a point, and set the flag in the datum
+	* accordingly. (we don't bother to repalloc it smaller)
+	*/
+	if (cube_is_point_internal(result))
+	{
+		size = POINT_SIZE(dim);
+		SET_VARSIZE(result, size);
+		SET_POINT_BIT(result);
+	}
+
+	return (result);
+}
+
 Datum
 cube_union(PG_FUNCTION_ARGS)
 {
@@ -962,6 +1039,21 @@ cube_size(PG_FUNCTION_ARGS)
 
 	PG_FREE_IF_COPY(a, 0);
 	PG_RETURN_FLOAT8(result);
+}
+
+static void
+rt_cube_edge(NDBOX *a, double *size)
+{
+	int			i;
+	double		result = 0;
+
+	if (a != (NDBOX *)NULL)
+	{
+		for (i = 0; i < DIM(a); i++)
+			result += Abs(UR_COORD(a, i) - LL_COORD(a, i));
+	}
+	*size = result;
+	return;
 }
 
 void
