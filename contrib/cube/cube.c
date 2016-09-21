@@ -94,6 +94,7 @@ int32		cube_cmp_v0(NDBOX *a, NDBOX *b);
 bool		cube_contains_v0(NDBOX *a, NDBOX *b);
 bool		cube_overlap_v0(NDBOX *a, NDBOX *b);
 NDBOX	   *cube_union_v0(NDBOX *a, NDBOX *b);
+NDBOX	   *cube_intersect_v0(NDBOX *a, NDBOX *b);
 NDBOX	   *cube_union_n(NDBOX **a, int dim, int n);
 static void		rt_cube_edge(NDBOX *a, double *sz);
 void		rt_cube_size(NDBOX *a, double *sz);
@@ -485,9 +486,23 @@ compare_boxes(const void* ap, const void* bp, void *argsp)
 	return (sa>sb) ? 1 : -1;
 }
 
-double g_split_goal(NDBOX **args, int n, int border)
+double g_split_goal(NDBOX **args, int n, int border, double max_edge)
 {
-	return 0;
+	NDBOX *left = cube_union_n(args, border);
+	NDBOX *right = cube_union_n(args + border, n - border);
+	double wg, ledge, redge;
+	double nd = n; // to avoid overflow in huge pages
+	double wf = nd * nd / 4 - (nd - border) * (nd - border);
+	if(cube_overlap_v0(left,right))
+	{
+		NDBOX *overlap = cube_intersect_v0(left, right);
+		rt_cube_size(overlap, &wg);
+		return wg / wf;
+	}
+	rt_cube_edge(left, &ledge);
+	rt_cube_edge(right, &redge);
+	wg = ledge + redge;
+	return (wg - max_edge) * wf;
 }
 
 /*
@@ -536,6 +551,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	int bestBorder = -1;
 	int dim = 0;
 	int bestaxis = -1;
+	double max_edge;
 
 	sortargs.vector = (NDBOX**)palloc(n * sizeof(NDBOX*));
 
@@ -547,10 +563,14 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 			dim = DIM(sortargs.vector[i]);
 	}
 
+	rt_cube_edge(cube_union_n(sortargs.vector, n), &max_edge);
+
 	for (i = 0; i < dim; i++)
 	{
 		OffsetNumber border;
 		OffsetNumber startBorder = floor(0.2 * n);
+		if (startBorder == 0)
+			startBorder = 1; // this is split to nonempty parts
 		OffsetNumber endBorder = n - startBorder;
 		sortargs.axis = i;
 
@@ -559,7 +579,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 
 		for (border = startBorder; border < endBorder; border++)
 		{
-			double w = g_split_goal(sortargs.vector, n, border);
+			double w = g_split_goal(sortargs.vector, n, border,max_edge);
 			if(w < bestw)
 			{
 				bestw = w;
@@ -577,7 +597,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 
 		for (border = startBorder; border < endBorder; border++)
 		{
-			double w = g_split_goal(sortargs.vector, n, border);
+			double w = g_split_goal(sortargs.vector, n, border, max_edge);
 			if (w < bestw)
 			{
 				bestw = w;
@@ -874,6 +894,71 @@ cube_union_v0(NDBOX *a, NDBOX *b)
 
 	return (result);
 }
+
+NDBOX *
+cube_intersect_v0(NDBOX *a, NDBOX *b)
+{
+	int			i;
+	NDBOX	   *result;
+	int			dim;
+	int			size;
+
+	/* trivial case */
+	if (a == b)
+		return a;
+
+	/* swap the arguments if needed, so that 'a' is always larger than 'b' */
+	if (DIM(a) < DIM(b))
+	{
+		NDBOX	   *tmp = b;
+
+		b = a;
+		a = tmp;
+	}
+	dim = DIM(a);
+
+	size = CUBE_SIZE(dim);
+	result = palloc0(size);
+	SET_VARSIZE(result, size);
+	SET_DIM(result, dim);
+
+	/* First compute the union of the dimensions present in both args */
+	for (i = 0; i < DIM(b); i++)
+	{
+		result->x[i] = Max(
+			Min(LL_COORD(a, i), UR_COORD(a, i)),
+			Min(LL_COORD(b, i), UR_COORD(b, i))
+			);
+		result->x[i + DIM(a)] = Min(
+			Max(LL_COORD(a, i), UR_COORD(a, i)),
+			Max(LL_COORD(b, i), UR_COORD(b, i))
+			);
+	}
+	/* continue on the higher dimensions only present in 'a' */
+	for (; i < DIM(a); i++)
+	{
+		result->x[i] = Max(0,
+			Min(LL_COORD(a, i), UR_COORD(a, i))
+			);
+		result->x[i + dim] = Min(0,
+			Max(LL_COORD(a, i), UR_COORD(a, i))
+			);
+	}
+
+	/*
+	* Check if the result was in fact a point, and set the flag in the datum
+	* accordingly. (we don't bother to repalloc it smaller)
+	*/
+	if (cube_is_point_internal(result))
+	{
+		size = POINT_SIZE(dim);
+		SET_VARSIZE(result, size);
+		SET_POINT_BIT(result);
+	}
+
+	return (result);
+}
+
 
 
 NDBOX *
