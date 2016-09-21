@@ -563,7 +563,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 			dim = DIM(sortargs.vector[i]);
 	}
 
-	rt_cube_edge(cube_union_n(sortargs.vector, n), &max_edge);
+	rt_cube_edge(cube_union_n(sortargs.vector, dim, n), &max_edge);
 
 	for (i = 0; i < dim; i++)
 	{
