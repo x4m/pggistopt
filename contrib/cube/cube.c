@@ -631,26 +631,26 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	elog(DEBUG3, "Bestborder %d axis %d", bestBorder, bestaxis);
 	v->spl_nleft = bestBorder;
 	v->spl_nright = n - bestBorder;
-	v->spl_left = (OffsetNumber *)palloc((v->spl_nleft + 2)*sizeof(OffsetNumber));
-	v->spl_right = (OffsetNumber *)palloc((v->spl_nright + 2)*sizeof(OffsetNumber));
-	v->spl_left[v->spl_nleft + 1] = FirstOffsetNumber;
-	v->spl_right[v->spl_nright + 1] = FirstOffsetNumber;
+	v->spl_left = (OffsetNumber *)palloc((v->spl_nleft + 1)*sizeof(OffsetNumber));
+	v->spl_right = (OffsetNumber *)palloc((v->spl_nright + 1)*sizeof(OffsetNumber));
+	v->spl_left[v->spl_nleft] = FirstOffsetNumber;
+	v->spl_right[v->spl_nright] = FirstOffsetNumber;
 
 	v->spl_ldatum = PointerGetDatum(cube_union_n(sortargs.vector, best_numbers, dim, bestBorder));
 	v->spl_rdatum = PointerGetDatum(cube_union_n(sortargs.vector, best_numbers + bestBorder, dim, n - bestBorder));
 	
 	elog(DEBUG2, "Picksplit left: %d", v->spl_nleft);
-	for (i = FirstOffsetNumber; i <= v->spl_nleft; i = OffsetNumberNext(i))
+	for (i = 0; i < v->spl_nleft; i++)
 	{
-		v->spl_left[i] = best_numbers[i - FirstOffsetNumber] + FirstOffsetNumber;
+		v->spl_left[i] = best_numbers[i] + FirstOffsetNumber;
 		
 		//elog(DEBUG3, "%d : %d", i, v->spl_left[i]);
 	}
 
 	elog(DEBUG2, "Picksplit right: %d", v->spl_nright);
-	for (i = FirstOffsetNumber; i <= v->spl_nright; i = OffsetNumberNext(i))
+	for (i = 0; i < v->spl_nright; i++)
 	{
-		v->spl_right[i] = best_numbers[i - FirstOffsetNumber + bestBorder] + FirstOffsetNumber;
+		v->spl_right[i] = best_numbers[i + bestBorder] + FirstOffsetNumber;
 
 		//elog(DEBUG3, "%d : %d", i, v->spl_right[i]);
 	}
