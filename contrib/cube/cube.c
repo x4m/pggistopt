@@ -484,7 +484,7 @@ compare_boxes(const void* ap, const void* bp, void *argsp)
 	if (sa == sb) 
 		return 0;
 
-	elog(DEBUG3, "Nonzero compare");
+	// elog(DEBUG3, "Nonzero compare");
 	return (sa>sb) ? 1 : -1;
 }
 
