@@ -628,7 +628,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 
 	for (i = FirstOffsetNumber; i <= v->spl_nright; i = OffsetNumberNext(i))
 	{
-		v->spl_nright[i] = best_numbers[i - FirstOffsetNumber + bestBorder] + FirstOffsetNumber;
+		v->spl_right[i] = best_numbers[i - FirstOffsetNumber + bestBorder] + FirstOffsetNumber;
 	}
 
 	PG_RETURN_POINTER(v);
