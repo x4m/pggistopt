@@ -570,7 +570,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 
 	elog(DEBUG2, "Calc max perimeter");
 	rt_cube_edge(cube_union_n(sortargs.vector, numbers, dim, n), &max_edge);
-	elog(DEBUG3, "Max edge %d",max_edge);
+	elog(DEBUG3, "Max edge %f",max_edge);
 
 	for (i = 0; i < dim; i++)
 	{
