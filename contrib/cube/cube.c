@@ -483,6 +483,8 @@ compare_boxes(const void* ap, const void* bp, void *argsp)
 
 	if (sa == sb) 
 		return 0;
+
+	elog(DEBUG3, "Nonzero compare");
 	return (sa>sb) ? 1 : -1;
 }
 
@@ -568,6 +570,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 
 	elog(DEBUG2, "Calc max perimeter");
 	rt_cube_edge(cube_union_n(sortargs.vector, numbers, dim, n), &max_edge);
+	elog(DEBUG3, "Max edge %d",max_edge);
 
 	for (i = 0; i < dim; i++)
 	{
@@ -587,7 +590,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 		{
 			double w = g_split_goal(sortargs.vector, numbers, dim, n, border,max_edge);
 
-			elog(DEBUG4, "border %d w %f", border, w);
+			//elog(DEBUG4, "border %d w %f", border, w);
 			if(w < bestw)
 			{
 				bestw = w;
@@ -636,7 +639,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	{
 		v->spl_left[i] = best_numbers[i - FirstOffsetNumber] + FirstOffsetNumber;
 		
-		elog(DEBUG3, "%d : %d", i, v->spl_left[i]);
+		//elog(DEBUG3, "%d : %d", i, v->spl_left[i]);
 	}
 
 	elog(DEBUG2, "Picksplit right: %d", v->spl_nright);
@@ -644,7 +647,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	{
 		v->spl_right[i] = best_numbers[i - FirstOffsetNumber + bestBorder] + FirstOffsetNumber;
 
-		elog(DEBUG3, "%d : %d", i, v->spl_right[i]);
+		//elog(DEBUG3, "%d : %d", i, v->spl_right[i]);
 	}
 
 	PG_RETURN_POINTER(v);
