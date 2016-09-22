@@ -95,7 +95,7 @@ bool		cube_contains_v0(NDBOX *a, NDBOX *b);
 bool		cube_overlap_v0(NDBOX *a, NDBOX *b);
 NDBOX	   *cube_union_v0(NDBOX *a, NDBOX *b);
 NDBOX	   *cube_intersect_v0(NDBOX *a, NDBOX *b);
-NDBOX	   *cube_union_n(NDBOX **a, int dim, int n);
+NDBOX	   *cube_union_n(NDBOX **a, int *places, int dim, int n);
 static void		rt_cube_edge(NDBOX *a, double *sz);
 void		rt_cube_size(NDBOX *a, double *sz);
 NDBOX	   *g_cube_binary_union(NDBOX *r1, NDBOX *r2, int *sizep);
@@ -486,10 +486,10 @@ compare_boxes(const void* ap, const void* bp, void *argsp)
 	return (sa>sb) ? 1 : -1;
 }
 
-double g_split_goal(NDBOX **args, int dim, int n, int border, double max_edge)
+double g_split_goal(NDBOX **args,int* numbers, int dim, int n, int border, double max_edge)
 {
-	NDBOX *left = cube_union_n(args, dim, border);
-	NDBOX *right = cube_union_n(args + border, dim, n - border);
+	NDBOX *left = cube_union_n(args, numbers, dim, border);
+	NDBOX *right = cube_union_n(args, numbers + border, dim, n - border);
 	double wg, ledge, redge;
 	double nd = n; // to avoid overflow in huge pages
 	double wf = nd * nd / 4 - (nd - border) * (nd - border);
@@ -559,11 +559,11 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	{
 		numbers[i] = i;
 		sortargs.vector[i] = DatumGetNDBOX(entryvec->vector[i + FirstOffsetNumber].key);
-		if (DIM(sortargs.vector[i]) > dim)
-			dim = DIM(sortargs.vector[i]);
+		if (DIM(sortargs.vector[i + FirstOffsetNumber]) > dim)
+			dim = DIM(sortargs.vector[i + FirstOffsetNumber]);
 	}
 
-	rt_cube_edge(cube_union_n(sortargs.vector, dim, n), &max_edge);
+	rt_cube_edge(cube_union_n(sortargs.vector, numbers, dim, n), &max_edge);
 
 	for (i = 0; i < dim; i++)
 	{
@@ -618,8 +618,8 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	v->spl_left[0] = FirstOffsetNumber;
 	v->spl_right[0] = FirstOffsetNumber;
 
-	v->spl_ldatum = PointerGetDatum(cube_union_n(best_numbers, dim, bestBorder));
-	v->spl_rdatum = PointerGetDatum(cube_union_n(best_numbers + bestBorder, dim, n - bestBorder));
+	v->spl_ldatum = PointerGetDatum(cube_union_n(sortargs->vector, best_numbers, dim, bestBorder));
+	v->spl_rdatum = PointerGetDatum(cube_union_n(sortargs->vector, best_numbers + bestBorder, dim, n - bestBorder));
 	
 	for (i = FirstOffsetNumber; i <= v->spl_nleft; i = OffsetNumberNext(i))
 	{
@@ -980,7 +980,7 @@ cube_intersect_v0(NDBOX *a, NDBOX *b)
 
 
 NDBOX *
-cube_union_n(NDBOX **a, int dim, int n)
+cube_union_n(NDBOX **a, int *places, int dim, int n)
 {
 	int			i, o;
 	NDBOX	   *result;
@@ -1000,14 +1000,14 @@ cube_union_n(NDBOX **a, int dim, int n)
 	for (o = 0; o < n; o++)
 		for (i = 0; i < dim; i++)
 		{
-			if (DIM(a[o]) <= i)
+			if (DIM(a[places[o]]) <= i)
 				break;
 			result->x[i] = Min(
-				Min(LL_COORD(a[o], i), UR_COORD(a[o], i)),
+				Min(LL_COORD(a[places[o]], i), UR_COORD(a[places[o]], i)),
 				LL_COORD(result, i)
 				);
 			result->x[i + dim] = Max(
-				Max(LL_COORD(a[o], i), UR_COORD(a[o], i)),
+				Max(LL_COORD(a[places[o]], i), UR_COORD(a[places[o]], i)),
 				UR_COORD(result, i)
 				);
 		}
