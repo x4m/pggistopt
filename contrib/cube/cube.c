@@ -611,9 +611,27 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 		}
 	}
 
+	v->spl_nleft = bestBorder;
+	v->spl_nright = n - bestBorder;
+	v->spl_left = (OffsetNumber *)palloc((v->spl_nleft + 1)*sizeof(OffsetNumber));
+	v->spl_right = (OffsetNumber *)palloc((v->spl_nright + 1)*sizeof(OffsetNumber));
+	v->spl_left[0] = FirstOffsetNumber;
+	v->spl_right[0] = FirstOffsetNumber;
 
+	v->spl_ldatum = PointerGetDatum(cube_union_n(best_numbers, dim, bestBorder));
+	v->spl_rdatum = PointerGetDatum(cube_union_n(best_numbers + bestBorder, dim, n - bestBorder));
+	
+	for (i = FirstOffsetNumber; i <= v->spl_nleft; i = OffsetNumberNext(i))
+	{
+		v->spl_left[i] = best_numbers[i - FirstOffsetNumber] + FirstOffsetNumber;
+	}
 
+	for (i = FirstOffsetNumber; i <= v->spl_nright; i = OffsetNumberNext(i))
+	{
+		v->spl_nright[i] = best_numbers[i - FirstOffsetNumber + bestBorder] + FirstOffsetNumber;
+	}
 
+	PG_RETURN_POINTER(v);
 	/*
 	 * fprintf(stderr, "picksplit\n");
 	 */
