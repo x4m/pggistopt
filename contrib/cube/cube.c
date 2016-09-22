@@ -621,14 +621,21 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	v->spl_ldatum = PointerGetDatum(cube_union_n(sortargs.vector, best_numbers, dim, bestBorder));
 	v->spl_rdatum = PointerGetDatum(cube_union_n(sortargs.vector, best_numbers + bestBorder, dim, n - bestBorder));
 	
+
+	elog(NOTICE, "Picksplit left: %d", v->spl_nleft);
 	for (i = FirstOffsetNumber; i <= v->spl_nleft; i = OffsetNumberNext(i))
 	{
 		v->spl_left[i] = best_numbers[i - FirstOffsetNumber] + FirstOffsetNumber;
+
+		elog(NOTICE, "%d : %d", i, v->spl_left[i]);
 	}
 
+	elog(NOTICE, "Picksplit right: %d", v->spl_nright);
 	for (i = FirstOffsetNumber; i <= v->spl_nright; i = OffsetNumberNext(i))
 	{
 		v->spl_right[i] = best_numbers[i - FirstOffsetNumber + bestBorder] + FirstOffsetNumber;
+
+		elog(NOTICE, "%d : %d", i, v->spl_right[i]);
 	}
 
 	PG_RETURN_POINTER(v);
@@ -774,7 +781,7 @@ g_cube_same(PG_FUNCTION_ARGS)
 /*
 ** SUPPORT ROUTINES
 */
-bool
+boolelo
 g_cube_leaf_consistent(NDBOX *key,
 					   NDBOX *query,
 					   StrategyNumber strategy)
