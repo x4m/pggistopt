@@ -626,7 +626,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	for (i = FirstOffsetNumber; i <= v->spl_nleft; i = OffsetNumberNext(i))
 	{
 		v->spl_left[i] = best_numbers[i - FirstOffsetNumber] + FirstOffsetNumber;
-
+		
 		elog(NOTICE, "%d : %d", i, v->spl_left[i]);
 	}
 
@@ -781,7 +781,7 @@ g_cube_same(PG_FUNCTION_ARGS)
 /*
 ** SUPPORT ROUTINES
 */
-boolelo
+bool
 g_cube_leaf_consistent(NDBOX *key,
 					   NDBOX *query,
 					   StrategyNumber strategy)
