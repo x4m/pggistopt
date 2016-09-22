@@ -561,7 +561,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	int bestaxis = -1;
 	double max_edge;
 
-	elog(DEBUG2, "Invoke split n: %d", n);
+	//elog(DEBUG2, "Invoke split n: %d", n);
 
 	sortargs.vector = (NDBOX**)palloc(n * sizeof(NDBOX*));
 
@@ -574,9 +574,9 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	}
 
 
-	elog(DEBUG2, "Calc max perimeter");
+	//elog(DEBUG2, "Calc max perimeter");
 	rt_cube_edge(cube_union_n(sortargs.vector, numbers, dim, n), &max_edge);
-	elog(DEBUG3, "Max edge %f",max_edge);
+	//elog(DEBUG3, "Max edge %f",max_edge);
 
 	for (i = 0; i < dim; i++)
 	{
@@ -587,7 +587,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 			startBorder = 1; // this is split to nonempty parts
 		endBorder = n - startBorder;
 		sortargs.axis = i;
-		elog(DEBUG3, "Inspect dimension %d", i);
+		//elog(DEBUG3, "Inspect dimension %d", i);
 
 		sortargs.compare_edge = 0;
 		qsort_arg(numbers, n, sizeof(int), compare_boxes, (void*)&sortargs);
@@ -628,7 +628,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 		}
 	}
 
-	elog(DEBUG3, "Bestborder %d axis %d", bestBorder, bestaxis);
+	//elog(DEBUG3, "Bestborder %d axis %d", bestBorder, bestaxis);
 	v->spl_nleft = bestBorder;
 	v->spl_nright = n - bestBorder;
 	v->spl_left = (OffsetNumber *)palloc((v->spl_nleft + 1)*sizeof(OffsetNumber));
@@ -639,7 +639,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	v->spl_ldatum = PointerGetDatum(cube_union_n(sortargs.vector, best_numbers, dim, bestBorder));
 	v->spl_rdatum = PointerGetDatum(cube_union_n(sortargs.vector, best_numbers + bestBorder, dim, n - bestBorder));
 	
-	elog(DEBUG2, "Picksplit left: %d", v->spl_nleft);
+	//elog(DEBUG2, "Picksplit left: %d", v->spl_nleft);
 	for (i = 0; i < v->spl_nleft; i++)
 	{
 		v->spl_left[i] = best_numbers[i] + FirstOffsetNumber;
@@ -647,7 +647,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 		//elog(DEBUG3, "%d : %d", i, v->spl_left[i]);
 	}
 
-	elog(DEBUG2, "Picksplit right: %d", v->spl_nright);
+	//elog(DEBUG2, "Picksplit right: %d", v->spl_nright);
 	for (i = 0; i < v->spl_nright; i++)
 	{
 		v->spl_right[i] = best_numbers[i + bestBorder] + FirstOffsetNumber;
