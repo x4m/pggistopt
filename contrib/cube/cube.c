@@ -618,8 +618,8 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	v->spl_left[0] = FirstOffsetNumber;
 	v->spl_right[0] = FirstOffsetNumber;
 
-	v->spl_ldatum = PointerGetDatum(cube_union_n(sortargs->vector, best_numbers, dim, bestBorder));
-	v->spl_rdatum = PointerGetDatum(cube_union_n(sortargs->vector, best_numbers + bestBorder, dim, n - bestBorder));
+	v->spl_ldatum = PointerGetDatum(cube_union_n(sortargs.vector, best_numbers, dim, bestBorder));
+	v->spl_rdatum = PointerGetDatum(cube_union_n(sortargs.vector, best_numbers + bestBorder, dim, n - bestBorder));
 	
 	for (i = FirstOffsetNumber; i <= v->spl_nleft; i = OffsetNumberNext(i))
 	{
