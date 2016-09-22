@@ -494,7 +494,7 @@ double g_split_goal(NDBOX **args,int* numbers, int dim, int n, int border, doubl
 	NDBOX *right = cube_union_n(args, numbers + border, dim, n - border);
 	double wg, ledge, redge;
 	double nd = n; // to avoid overflow in huge pages
-	double wf = nd * nd / 4 - (nd - border) * (nd - border);
+	double wf = 1 - (nd/2 - border) * (nd/2 - border)/(nd * nd / 4);
 	if(cube_overlap_v0(left,right))
 	{
 		NDBOX *overlap = cube_intersect_v0(left, right);
@@ -631,15 +631,14 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	elog(DEBUG3, "Bestborder %d axis %d", bestBorder, bestaxis);
 	v->spl_nleft = bestBorder;
 	v->spl_nright = n - bestBorder;
-	v->spl_left = (OffsetNumber *)palloc((v->spl_nleft + 1)*sizeof(OffsetNumber));
-	v->spl_right = (OffsetNumber *)palloc((v->spl_nright + 1)*sizeof(OffsetNumber));
-	v->spl_left[0] = FirstOffsetNumber;
-	v->spl_right[0] = FirstOffsetNumber;
+	v->spl_left = (OffsetNumber *)palloc((v->spl_nleft + 2)*sizeof(OffsetNumber));
+	v->spl_right = (OffsetNumber *)palloc((v->spl_nright + 2)*sizeof(OffsetNumber));
+	v->spl_left[v->spl_nleft + 1] = FirstOffsetNumber;
+	v->spl_right[v->spl_nright + 1] = FirstOffsetNumber;
 
 	v->spl_ldatum = PointerGetDatum(cube_union_n(sortargs.vector, best_numbers, dim, bestBorder));
 	v->spl_rdatum = PointerGetDatum(cube_union_n(sortargs.vector, best_numbers + bestBorder, dim, n - bestBorder));
 	
-
 	elog(DEBUG2, "Picksplit left: %d", v->spl_nleft);
 	for (i = FirstOffsetNumber; i <= v->spl_nleft; i = OffsetNumberNext(i))
 	{
@@ -655,6 +654,10 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 
 		//elog(DEBUG3, "%d : %d", i, v->spl_right[i]);
 	}
+
+	pfree(sortargs.vector);
+	pfree(best_numbers);
+	pfree(numbers);
 
 	PG_RETURN_POINTER(v);
 	/*
