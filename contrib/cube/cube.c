@@ -571,10 +571,12 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	{
 		OffsetNumber border;
 		OffsetNumber startBorder = floor(0.2 * n);
+		OffsetNumber endBorder;
 		if (startBorder == 0)
 			startBorder = 1; // this is split to nonempty parts
-		OffsetNumber endBorder = n - startBorder;
+		endBorder = n - startBorder;
 		sortargs.axis = i;
+		elog(DEBUG3, "Inspect dimension %d", i);
 
 		sortargs.compare_edge = 0;
 		qsort_arg(numbers, n, sizeof(int), compare_boxes, (void*)&sortargs);
@@ -613,6 +615,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 		}
 	}
 
+	elog(DEBUG3, "Bestborder %d axis %d", bestBorder, bestaxis);
 	v->spl_nleft = bestBorder;
 	v->spl_nright = n - bestBorder;
 	v->spl_left = (OffsetNumber *)palloc((v->spl_nleft + 1)*sizeof(OffsetNumber));
