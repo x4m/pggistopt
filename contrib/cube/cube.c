@@ -586,6 +586,8 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 		for (border = startBorder; border < endBorder; border++)
 		{
 			double w = g_split_goal(sortargs.vector, numbers, dim, n, border,max_edge);
+
+			elog(DEBUG4, "border %d w %f", border, w);
 			if(w < bestw)
 			{
 				bestw = w;
