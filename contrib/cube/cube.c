@@ -553,6 +553,8 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	int bestaxis = -1;
 	double max_edge;
 
+	elog(DEBUG, "Invoke split n: %d", n);
+
 	sortargs.vector = (NDBOX**)palloc(n * sizeof(NDBOX*));
 
 	for (i = 0; i < n; i++)
@@ -622,20 +624,20 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	v->spl_rdatum = PointerGetDatum(cube_union_n(sortargs.vector, best_numbers + bestBorder, dim, n - bestBorder));
 	
 
-	elog(NOTICE, "Picksplit left: %d", v->spl_nleft);
+	elog(DEBUG, "Picksplit left: %d", v->spl_nleft);
 	for (i = FirstOffsetNumber; i <= v->spl_nleft; i = OffsetNumberNext(i))
 	{
 		v->spl_left[i] = best_numbers[i - FirstOffsetNumber] + FirstOffsetNumber;
 		
-		elog(NOTICE, "%d : %d", i, v->spl_left[i]);
+		elog(DEBUG, "%d : %d", i, v->spl_left[i]);
 	}
 
-	elog(NOTICE, "Picksplit right: %d", v->spl_nright);
+	elog(DEBUG, "Picksplit right: %d", v->spl_nright);
 	for (i = FirstOffsetNumber; i <= v->spl_nright; i = OffsetNumberNext(i))
 	{
 		v->spl_right[i] = best_numbers[i - FirstOffsetNumber + bestBorder] + FirstOffsetNumber;
 
-		elog(NOTICE, "%d : %d", i, v->spl_right[i]);
+		elog(DEBUG, "%d : %d", i, v->spl_right[i]);
 	}
 
 	PG_RETURN_POINTER(v);
