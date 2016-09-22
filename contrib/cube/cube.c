@@ -499,10 +499,16 @@ double g_split_goal(NDBOX **args,int* numbers, int dim, int n, int border, doubl
 	{
 		NDBOX *overlap = cube_intersect_v0(left, right);
 		rt_cube_size(overlap, &wg);
+
+		pfree(left);
+		pfree(right);
+		pfree(overlap);
 		return wg / wf;
 	}
 	rt_cube_edge(left, &ledge);
 	rt_cube_edge(right, &redge);
+	pfree(left);
+	pfree(right);
 	wg = ledge + redge;
 	return (wg - max_edge) * wf;
 }
