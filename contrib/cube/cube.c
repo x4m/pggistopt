@@ -460,7 +460,7 @@ compare_boxes(const void* ap, const void* bp, void *argsp)
 	NDBOX *bbox = args->vector[b];
 	int axis = args->axis;
 
-	if(DIM(abox)<axis)
+	if(DIM(abox)>axis)
 	{
 		if (args->compare_edge == 0)
 			sa = LL_COORD(abox, axis);
@@ -471,7 +471,7 @@ compare_boxes(const void* ap, const void* bp, void *argsp)
 	}
 
 
-	if (DIM(bbox)<axis)
+	if (DIM(bbox)>axis)
 	{
 		if (args->compare_edge == 0)
 			sb = LL_COORD(bbox, axis);
