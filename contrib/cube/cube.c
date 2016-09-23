@@ -500,15 +500,15 @@ double g_split_goal(NDBOX **args,int* numbers, int dim, int n, int border, doubl
 		NDBOX *overlap = cube_intersect_v0(left, right);
 		rt_cube_size(overlap, &wg);
 
-		pfree(left);
-		pfree(right);
-		pfree(overlap);
+		//pfree(left);
+		//pfree(right);
+		//pfree(overlap);
 		return wg / wf;
 	}
 	rt_cube_edge(left, &ledge);
 	rt_cube_edge(right, &redge);
-	pfree(left);
-	pfree(right);
+	//pfree(left);
+	//pfree(right);
 	wg = ledge + redge;
 	return (wg - max_edge) * wf;
 }
@@ -525,31 +525,6 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 
 	OffsetNumber i,
 				j;
-	NDBOX	   *datum_alpha,
-			   *datum_beta;
-	NDBOX	   *datum_l,
-			   *datum_r;
-	NDBOX	   *union_d,
-			   *union_dl,
-			   *union_dr;
-	NDBOX	   *inter_d;
-	bool		firsttime;
-	double		size_alpha,
-				size_beta,
-				size_union,
-				size_inter;
-	double		size_waste,
-				waste;
-	double		size_l,
-				size_r;
-	int			nbytes;
-	OffsetNumber seed_1 = 1,
-				seed_2 = 2;
-	OffsetNumber *left,
-			   *right;
-	OffsetNumber maxoff;
-
-
 
 	SplitSortArgs sortargs;
 	int n = entryvec->n - FirstOffsetNumber;
@@ -655,125 +630,9 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 		//elog(DEBUG3, "%d : %d", i, v->spl_right[i]);
 	}
 
-	pfree(sortargs.vector);
-	pfree(best_numbers);
-	pfree(numbers);
-
-	PG_RETURN_POINTER(v);
-	/*
-	 * fprintf(stderr, "picksplit\n");
-	 */
-	maxoff = entryvec->n - 2;
-	nbytes = (maxoff + 2) * sizeof(OffsetNumber);
-	v->spl_left = (OffsetNumber *) palloc(nbytes);
-	v->spl_right = (OffsetNumber *) palloc(nbytes);
-
-	firsttime = true;
-	waste = 0.0;
-
-	for (i = FirstOffsetNumber; i < maxoff; i = OffsetNumberNext(i))
-	{
-		datum_alpha = DatumGetNDBOX(entryvec->vector[i].key);
-		for (j = OffsetNumberNext(i); j <= maxoff; j = OffsetNumberNext(j))
-		{
-			datum_beta = DatumGetNDBOX(entryvec->vector[j].key);
-
-			/* compute the wasted space by unioning these guys */
-			/* size_waste = size_union - size_inter; */
-			union_d = cube_union_v0(datum_alpha, datum_beta);
-			rt_cube_size(union_d, &size_union);
-			inter_d = DatumGetNDBOX(DirectFunctionCall2(cube_inter,
-						  entryvec->vector[i].key, entryvec->vector[j].key));
-			rt_cube_size(inter_d, &size_inter);
-			size_waste = size_union - size_inter;
-
-			/*
-			 * are these a more promising split than what we've already seen?
-			 */
-
-			if (size_waste > waste || firsttime)
-			{
-				waste = size_waste;
-				seed_1 = i;
-				seed_2 = j;
-				firsttime = false;
-			}
-		}
-	}
-
-	left = v->spl_left;
-	v->spl_nleft = 0;
-	right = v->spl_right;
-	v->spl_nright = 0;
-
-	datum_alpha = DatumGetNDBOX(entryvec->vector[seed_1].key);
-	datum_l = cube_union_v0(datum_alpha, datum_alpha);
-	rt_cube_size(datum_l, &size_l);
-	datum_beta = DatumGetNDBOX(entryvec->vector[seed_2].key);
-	datum_r = cube_union_v0(datum_beta, datum_beta);
-	rt_cube_size(datum_r, &size_r);
-
-	/*
-	 * Now split up the regions between the two seeds.  An important property
-	 * of this split algorithm is that the split vector v has the indices of
-	 * items to be split in order in its left and right vectors.  We exploit
-	 * this property by doing a merge in the code that actually splits the
-	 * page.
-	 *
-	 * For efficiency, we also place the new index tuple in this loop. This is
-	 * handled at the very end, when we have placed all the existing tuples
-	 * and i == maxoff + 1.
-	 */
-
-	maxoff = OffsetNumberNext(maxoff);
-	for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
-	{
-		/*
-		 * If we've already decided where to place this item, just put it on
-		 * the right list.  Otherwise, we need to figure out which page needs
-		 * the least enlargement in order to store the item.
-		 */
-
-		if (i == seed_1)
-		{
-			*left++ = i;
-			v->spl_nleft++;
-			continue;
-		}
-		else if (i == seed_2)
-		{
-			*right++ = i;
-			v->spl_nright++;
-			continue;
-		}
-
-		/* okay, which page needs least enlargement? */
-		datum_alpha = DatumGetNDBOX(entryvec->vector[i].key);
-		union_dl = cube_union_v0(datum_l, datum_alpha);
-		union_dr = cube_union_v0(datum_r, datum_alpha);
-		rt_cube_size(union_dl, &size_alpha);
-		rt_cube_size(union_dr, &size_beta);
-
-		/* pick which page to add it to */
-		if (size_alpha - size_l < size_beta - size_r)
-		{
-			datum_l = union_dl;
-			size_l = size_alpha;
-			*left++ = i;
-			v->spl_nleft++;
-		}
-		else
-		{
-			datum_r = union_dr;
-			size_r = size_beta;
-			*right++ = i;
-			v->spl_nright++;
-		}
-	}
-	*left = *right = FirstOffsetNumber; /* sentinel value, see dosplit() */
-
-	v->spl_ldatum = PointerGetDatum(datum_l);
-	v->spl_rdatum = PointerGetDatum(datum_r);
+	//pfree(sortargs.vector);
+	//pfree(best_numbers);
+	//pfree(numbers);
 
 	PG_RETURN_POINTER(v);
 }
