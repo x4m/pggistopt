@@ -530,6 +530,39 @@ non_negative(float val)
 		return 0.0f;
 }
 
+static inline NDBOX*
+adjust_box(NDBOX *b, NDBOX *addon)
+{
+	int			i, size;
+	NDBOX	   *cube;
+
+	if (b->dim >= addon->dim)
+		cube = b;
+	else
+	{
+		size = offsetof(NDBOX, x[0]) + 2 * sizeof(double)*addon->dim;
+		cube = (NDBOX *)palloc0(size);
+		SET_VARSIZE(cube, size);
+		cube->dim = addon->dim;
+
+		for (i = 0; i<b->dim; i++)
+			cube->x[cube->dim + i] = b->x[b->dim + i];
+
+		for (; i<cube->dim; i++)
+			cube->x[i] = cube->x[cube->dim + i] = 0;
+	}
+
+	for (i = 0; i < addon->dim; i++)
+	{
+		if (cube->x[i + cube->dim] < addon->x[i + addon->dim])
+			cube->x[i + cube->dim] = addon->x[i + addon->dim];
+		if (cube->x[i] > addon->x[i])
+			cube->x[i] = addon->x[i];
+	}
+
+	return cube;
+}
+
 static int
  interval_cmp_upper(const void *i1, const void *i2)
  {
