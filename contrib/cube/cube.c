@@ -673,7 +673,7 @@ korotkov_split(GistEntryVector *entryvec, GIST_SPLITVEC *v)
 	* Iterate over axes for optimal split searching.
 	*/
 	context.first = true;		/* nothing selected yet */
-	for (dim = 0; dim < box->dim; dim++)
+	for (dim = 0; dim < DIM(box); dim++)
 	{
 		double		leftUpper,
 			rightLower;
@@ -685,7 +685,7 @@ korotkov_split(GistEntryVector *entryvec, GIST_SPLITVEC *v)
 		{
 			box = DatumGetNDBOX(entryvec->vector[i].key);
 			intervalsLower[i - FirstOffsetNumber].lower = box->x[dim];
-			intervalsLower[i - FirstOffsetNumber].upper = box->x[dim + box->dim];
+			intervalsLower[i - FirstOffsetNumber].upper = box->x[dim + DIM(box)];
 		}
 
 		/*
@@ -868,7 +868,7 @@ korotkov_split(GistEntryVector *entryvec, GIST_SPLITVEC *v)
 		*/
 		box = DatumGetNDBOX(entryvec->vector[i].key);
 		lower = box->x[context.dim];
-		upper = box->x[context.dim + box->dim];
+		upper = box->x[context.dim + DIM(box)];
 
 		if (upper <= context.leftUpper)
 		{
