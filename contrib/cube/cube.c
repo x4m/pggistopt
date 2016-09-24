@@ -500,7 +500,7 @@ double g_split_goal(NDBOX **args,int* numbers, int dim, int n, int border, doubl
 		NDBOX *overlap = cube_intersect_v0(left, right);
 		rt_cube_size(overlap, &wg);
 
-		elog(DEBUG5, "overlap %f wf %f", wg, wf);
+		//elog(DEBUG5, "overlap %f wf %f", wg, wf);
 
 		//pfree(left);
 		//pfree(right);
@@ -607,7 +607,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 		}
 	}
 
-	elog(DEBUG3, "Bestborder %d axis %d bestw %f", bestBorder, bestaxis, bestw);
+	//elog(DEBUG3, "Bestborder %d axis %d bestw %f", bestBorder, bestaxis, bestw);
 	v->spl_nleft = bestBorder;
 	v->spl_nright = n - bestBorder;
 	v->spl_left = (OffsetNumber *)palloc((v->spl_nleft + 1)*sizeof(OffsetNumber));
