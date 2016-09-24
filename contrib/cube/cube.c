@@ -571,7 +571,7 @@ cube_consider_split(ConsiderSplitContext *context, int dimNum,
 		* overlaps. We switch dimension if find less overlap (non-negative)
 		* or less range with same overlap.
 		*/
-		range = (context->boundingBox)->x[dimNum + (context->boundingBox)->dim]
+		range = (context->boundingBox)->x[dimNum + DIM(context->boundingBox)]
 			- (context->boundingBox)->x[dimNum];
 
 		overlap = (leftUpper - rightLower) / range;
