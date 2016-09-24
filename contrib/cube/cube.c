@@ -536,26 +536,26 @@ adjust_box(NDBOX *b, NDBOX *addon)
 	int			i, size;
 	NDBOX	   *cube;
 
-	if (b->dim >= addon->dim)
+	if (DIM(b)>= DIM(addon))
 		cube = b;
 	else
 	{
-		size = offsetof(NDBOX, x[0]) + 2 * sizeof(double)*addon->dim;
+		size = offsetof(NDBOX, x[0]) + 2 * sizeof(double)*DIM(addon);
 		cube = (NDBOX *)palloc0(size);
 		SET_VARSIZE(cube, size);
-		cube->dim = addon->dim;
+		SET_DIM(cube)= DIM(addon);
 
-		for (i = 0; i<b->dim; i++)
-			cube->x[cube->dim + i] = b->x[b->dim + i];
+		for (i = 0; i<DIM(b); i++)
+			cube->x[DIM(cube)+ i] = b->x[DIM(b)+ i];
 
-		for (; i<cube->dim; i++)
-			cube->x[i] = cube->x[cube->dim + i] = 0;
+		for (; i<DIM(cube); i++)
+			cube->x[i] = cube->x[DIM(cube)+ i] = 0;
 	}
 
-	for (i = 0; i < addon->dim; i++)
+	for (i = 0; i < DIM(addon); i++)
 	{
-		if (cube->x[i + cube->dim] < addon->x[i + addon->dim])
-			cube->x[i + cube->dim] = addon->x[i + addon->dim];
+		if (cube->x[i + DIM(cube)] < addon->x[i + DIM(addon)])
+			cube->x[i + DIM(cube)] = addon->x[i + DIM(addon)];
 		if (cube->x[i] > addon->x[i])
 			cube->x[i] = addon->x[i];
 	}
