@@ -520,6 +520,16 @@ common_entry_cmp(const void *i1, const void *i2)
 	else
 		return 0;
 }
+
+static inline float
+non_negative(float val)
+{
+	if (val >= 0.0f)
+		return val;
+	else
+		return 0.0f;
+}
+
 static int
  interval_cmp_upper(const void *i1, const void *i2)
  {
