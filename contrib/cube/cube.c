@@ -696,6 +696,59 @@ cube_consider_split(ConsiderSplitContext *context, int dimNum,
 		return (tmp1 - tmp2);
 	}
 
+	static void
+		fallback_split(GistEntryVector *entryvec, GIST_SPLITVEC *v)
+	{
+		OffsetNumber i,
+			maxoff;
+		NDBOX	   *unionL = NULL,
+			*unionR = NULL;
+		int			nbytes;
+
+		maxoff = entryvec->n - 1;
+
+		nbytes = (maxoff + 2) * sizeof(OffsetNumber);
+		v->spl_left = (OffsetNumber *)palloc(nbytes);
+		v->spl_right = (OffsetNumber *)palloc(nbytes);
+		v->spl_nleft = v->spl_nright = 0;
+
+		for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
+		{
+			NDBOX		   *cur = DatumGetNDBOX(entryvec->vector[i].key);
+
+			if (i <= (maxoff - FirstOffsetNumber + 1) / 2)
+			{
+				v->spl_left[v->spl_nleft] = i;
+				if (unionL == NULL)
+				{
+					unionL = (NDBOX *)palloc(VARSIZE(cur));
+					*unionL = *cur;
+				}
+				else
+					unionL = adjust_box(unionL, cur);
+
+				v->spl_nleft++;
+			}
+			else
+			{
+				v->spl_right[v->spl_nright] = i;
+				if (unionR == NULL)
+				{
+					unionR = (NDBOX *)palloc(VARSIZE(cur));
+					*unionR = *cur;
+				}
+				else
+					unionR = adjust_box(unionR, cur);
+
+				v->spl_nright++;
+			}
+		}
+
+		v->spl_ldatum = PointerGetDatum(unionL);
+		v->spl_rdatum = PointerGetDatum(unionR);
+	}
+
+
 static void
 korotkov_split(GistEntryVector *entryvec, GIST_SPLITVEC *v)
 {
