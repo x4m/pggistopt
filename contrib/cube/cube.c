@@ -508,6 +508,19 @@ static int
 	}
 
 static int
+common_entry_cmp(const void *i1, const void *i2)
+{
+	double		delta1 = ((const CommonEntry *)i1)->delta,
+		delta2 = ((const CommonEntry *)i2)->delta;
+
+	if (delta1 < delta2)
+		return -1;
+	else if (delta1 > delta2)
+		return 1;
+	else
+		return 0;
+}
+static int
  interval_cmp_upper(const void *i1, const void *i2)
  {
 	double		upper1 = ((const SplitInterval *)i1)->upper,
