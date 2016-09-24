@@ -685,6 +685,17 @@ cube_consider_split(ConsiderSplitContext *context, int dimNum,
 }
 
 
+	static inline double
+		cube_penalty(NDBOX *origentry, NDBOX *newentry)
+	{
+		double		tmp1,
+			tmp2;
+
+		rt_cube_size(cube_union_v0(origentry, newentry), &tmp1);
+		rt_cube_size(origentry, &tmp2);
+		return (tmp1 - tmp2);
+	}
+
 static void
 korotkov_split(GistEntryVector *entryvec, GIST_SPLITVEC *v)
 {
