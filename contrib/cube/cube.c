@@ -491,6 +491,144 @@ typedef struct
 /* Minimum accepted ratio of split */
 #define LIMIT_RATIO 0.3
 
+
+
+static int
+ interval_cmp_lower(const void *i1, const void *i2)
+ {
+	double		lower1 = ((const SplitInterval *)i1)->lower,
+		lower2 = ((const SplitInterval *)i2)->lower;
+	
+		if (lower1 < lower2)
+		 return -1;
+	else if (lower1 > lower2)
+		 return 1;
+	else
+		 return 0;
+	}
+
+static int
+ interval_cmp_upper(const void *i1, const void *i2)
+ {
+	double		upper1 = ((const SplitInterval *)i1)->upper,
+		upper2 = ((const SplitInterval *)i2)->upper;
+	
+		if (upper1 < upper2)
+		 return -1;
+	else if (upper1 > upper2)
+		 return 1;
+	else
+		 return 0;
+	}
+
+
+/*
+* Consider replacement of currently selected split with the better one.
+*/
+static inline void
+cube_consider_split(ConsiderSplitContext *context, int dimNum,
+	double rightLower, int minLeftCount,
+	double leftUpper, int maxLeftCount)
+{
+	int			leftCount,
+		rightCount;
+	float4		ratio,
+		overlap;
+	double		range;
+
+	/*
+	* Calculate entries distribution ratio assuming most uniform distribution
+	* of common entries.
+	*/
+	if (minLeftCount >= (context->entriesCount + 1) / 2)
+	{
+		leftCount = minLeftCount;
+	}
+	else
+	{
+		if (maxLeftCount <= context->entriesCount / 2)
+			leftCount = maxLeftCount;
+		else
+			leftCount = context->entriesCount / 2;
+	}
+	rightCount = context->entriesCount - leftCount;
+
+	/*
+	* Ratio of split - quotient between size of lesser group and total
+	* entries count.
+	*/
+	ratio = ((float4)Min(leftCount, rightCount)) /
+		((float4)context->entriesCount);
+
+	if (ratio > LIMIT_RATIO)
+	{
+		bool		selectthis = false;
+
+		/*
+		* The ratio is acceptable, so compare current split with previously
+		* selected one. Between splits of one dimension we search for minimal
+		* overlap (allowing negative values) and minimal ration (between same
+		* overlaps. We switch dimension if find less overlap (non-negative)
+		* or less range with same overlap.
+		*/
+		range = (context->boundingBox)->x[dimNum + (context->boundingBox)->dim]
+			- (context->boundingBox)->x[dimNum];
+
+		overlap = (leftUpper - rightLower) / range;
+
+		/* If there is no previous selection, select this */
+		if (context->first)
+			selectthis = true;
+		else if (context->dim == dimNum)
+		{
+			/*
+			* Within the same dimension, choose the new split if it has a
+			* smaller overlap, or same overlap but better ratio.
+			*/
+			if (overlap < context->overlap ||
+				(overlap == context->overlap && ratio > context->ratio))
+				selectthis = true;
+		}
+		else
+		{
+			/*
+			* Across dimensions, choose the new split if it has a smaller
+			* *non-negative* overlap, or same *non-negative* overlap but
+			* bigger range. This condition differs from the one described in
+			* the article. On the datasets where leaf MBRs don't overlap
+			* themselves, non-overlapping splits (i.e. splits which have zero
+			* *non-negative* overlap) are frequently possible. In this case
+			* splits tends to be along one dimension, because most distant
+			* non-overlapping splits (i.e. having lowest negative overlap)
+			* appears to be in the same dimension as in the previous split.
+			* Therefore MBRs appear to be very prolonged along another
+			* dimension, which leads to bad search performance. Using range
+			* as the second split criteria makes MBRs more quadratic. Using
+			* *non-negative* overlap instead of overlap as the first split
+			* criteria gives to range criteria a chance to matter, because
+			* non-overlapping splits are equivalent in this criteria.
+			*/
+			if (non_negative(overlap) < non_negative(context->overlap) ||
+				(range > context->range &&
+					non_negative(overlap) <= non_negative(context->overlap)))
+				selectthis = true;
+		}
+
+		if (selectthis)
+		{
+			/* save information about selected split */
+			context->first = false;
+			context->ratio = ratio;
+			context->range = range;
+			context->overlap = overlap;
+			context->rightLower = rightLower;
+			context->leftUpper = leftUpper;
+			context->dim = dimNum;
+		}
+	}
+}
+
+
 static void
 korotkov_split(GistEntryVector *entryvec, GIST_SPLITVEC *v)
 {
