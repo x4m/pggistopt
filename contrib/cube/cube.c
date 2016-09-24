@@ -603,7 +603,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 		}
 	}
 
-	//elog(DEBUG3, "Bestborder %d axis %d", bestBorder, bestaxis);
+	elog(DEBUG3, "Bestborder %d axis %d bestw %d", bestBorder, bestaxis, bestw);
 	v->spl_nleft = bestBorder;
 	v->spl_nright = n - bestBorder;
 	v->spl_left = (OffsetNumber *)palloc((v->spl_nleft + 1)*sizeof(OffsetNumber));
