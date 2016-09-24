@@ -543,7 +543,7 @@ adjust_box(NDBOX *b, NDBOX *addon)
 		size = offsetof(NDBOX, x[0]) + 2 * sizeof(double)*DIM(addon);
 		cube = (NDBOX *)palloc0(size);
 		SET_VARSIZE(cube, size);
-		SET_DIM(cube)= DIM(addon);
+		SET_DIM(cube, DIM(addon));
 
 		for (i = 0; i<DIM(b); i++)
 			cube->x[DIM(cube)+ i] = b->x[DIM(b)+ i];
