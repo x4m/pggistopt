@@ -513,8 +513,8 @@ double g_split_goal(NDBOX **args,int* numbers, int dim, int n, int border, doubl
 	//pfree(right);
 	wg = ledge + redge;
 
-	elog(DEBUG5, "edge %f wf %f result %f", wg, wf, (wg - max_edge) * wf);
-	return (wg - max_edge) * wf;
+	//elog(DEBUG5, "edge %f wf %f result %f", wg, wf, (wg - max_edge) * wf);
+	return (wg - max_edge * 2) * wf;
 }
 
 /*
