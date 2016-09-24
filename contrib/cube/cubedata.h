@@ -1,4 +1,5 @@
 /* contrib/cube/cubedata.h */
+#include "access/gist.h"
 
 #define CUBE_MAX_DIM (100)
 
@@ -60,3 +61,10 @@ extern void cube_scanner_finish(void);
 
 /* in cubeparse.y */
 extern int	cube_yyparse(NDBOX **result);
+
+typedef struct SplitSortArgs
+{
+	int axis;
+	int compare_edge; // 0 - lowes, 1 - uppers, 2 - middles
+	NDBOX **vector;
+} SplitSortArgs;
