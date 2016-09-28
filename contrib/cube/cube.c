@@ -488,6 +488,15 @@ compare_boxes(const void* ap, const void* bp, void *argsp)
 	return (sa>sb) ? 1 : -1;
 }
 
+static inline float
+pack_float(float actualValue, int realm)
+{
+	// two bits for realm, other for value
+	int realmAjustment = *((int*)&actualValue)/4;
+	int realCode = realm * (INT32_MAX/4) + realmAjustment; // we have 4 realms
+	return *((float*)&realCode);
+}
+
 double g_split_goal(NDBOX **args,int* numbers, int dim, int n, int border, double max_edge)
 {
 	NDBOX *left = cube_union_n(args, numbers, dim, border);
@@ -505,7 +514,12 @@ double g_split_goal(NDBOX **args,int* numbers, int dim, int n, int border, doubl
 		//pfree(left);
 		//pfree(right);
 		//pfree(overlap);
-		return wg / wf;
+		if(wg == 0)
+		{
+			rt_cube_edge(overlap, &wg);
+			return pack_float( wg / wf, 1);
+		}
+		return pack_float( wg / wf, 2);
 	}
 	rt_cube_edge(left, &ledge);
 	rt_cube_edge(right, &redge);
@@ -514,7 +528,7 @@ double g_split_goal(NDBOX **args,int* numbers, int dim, int n, int border, doubl
 	wg = ledge + redge;
 
 	//elog(DEBUG5, "edge %f wf %f result %f", wg, wf, (wg - max_edge) * wf);
-	return (wg - max_edge * 2) * wf;
+	return pack_float( wg / wf, 0);
 }
 
 /*
