@@ -105,13 +105,12 @@ static bool		cube_contains_v0(NDBOX *a, NDBOX *b);
 static bool		cube_overlap_v0(NDBOX *a, NDBOX *b);
 static NDBOX	   *cube_union_v0(NDBOX *a, NDBOX *b);
 #ifdef ADVANCED_PENALTY
-NDBOX	   *cube_intersect_v0(NDBOX *a, NDBOX *b);
-static float		pack_float(float value, int realm);
-NDBOX	   *cube_union_n(NDBOX **a, int *places, int dim, int n);
+static NDBOX	   *cube_intersect_v0(NDBOX *a, NDBOX *b);
+static float		pack_float(const float value, const int realm);
+static double		pack_double(const double value, const int realm);
+static NDBOX	   *cube_union_n(NDBOX **a, int *places, int dim, int n);
 static void		rt_cube_edge(NDBOX *a, double *sz);
-void		rt_cube_size(NDBOX *a, double *sz);
-NDBOX	   *g_cube_binary_union(NDBOX *r1, NDBOX *r2, int *sizep);
-static void		rt_cube_edge(NDBOX *a, double *sz);
+static double g_split_goal(NDBOX **args,int* numbers, int dim, int n, int border, double max_edge);
 #endif
 static void		rt_cube_size(NDBOX *a, double *sz);
 static NDBOX	   *g_cube_binary_union(NDBOX *r1, NDBOX *r2, int *sizep);
@@ -454,6 +453,7 @@ g_cube_decompress(PG_FUNCTION_ARGS)
 static float
 pack_float(const float value, const int realm)
 {
+	/*
   union {
     float f;
     struct { unsigned value:31, sign:1; } vbits;
@@ -464,7 +464,19 @@ pack_float(const float value, const int realm)
   a.rbits.value = a.vbits.value >> 2;
   a.rbits.realm = realm;
 
-  return a.f;
+  return a.f;*/
+	//faster
+	int realmAdjustment = *((int*)&value)/4;
+	int realmCode = realm* (INT32_MAX/4)+realmAdjustment;
+	return *((float*)&realmCode);
+}
+
+static double
+pack_double(const double value, const int realm)
+{
+	int64 realmAdjustment = *((int64*)&value)/4;
+	int64 realmCode = realm* (INT64_MAX/4)+realmAdjustment;
+	return *((double*)&realmCode);
 }
 #endif
 
@@ -566,7 +578,7 @@ compare_boxes(const void* ap, const void* bp, void *argsp)
 	return (sa>sb) ? 1 : -1;
 }
 
-double g_split_goal(NDBOX **args,int* numbers, int dim, int n, int border, double max_edge)
+static double g_split_goal(NDBOX **args,int* numbers, int dim, int n, int border, double max_edge)
 {
 	NDBOX *left = cube_union_n(args, numbers, dim, border);
 	NDBOX *right = cube_union_n(args, numbers + border, dim, n - border);
@@ -583,7 +595,12 @@ double g_split_goal(NDBOX **args,int* numbers, int dim, int n, int border, doubl
 		//pfree(left);
 		//pfree(right);
 		//pfree(overlap);
-		return wg / wf;
+		if (wg == 0)
+		{
+			rt_cube_edge(overlap, &wg);
+			return pack_double( wg / wf, 1);
+		}
+		return pack_double( wg / wf, 2);
 	}
 	rt_cube_edge(left, &ledge);
 	rt_cube_edge(right, &redge);
@@ -592,7 +609,7 @@ double g_split_goal(NDBOX **args,int* numbers, int dim, int n, int border, doubl
 	wg = ledge + redge;
 
 	//elog(DEBUG5, "edge %f wf %f result %f", wg, wf, (wg - max_edge) * wf);
-	return (wg - max_edge * 2) * wf;
+	return pack_double( wg / wf, 0);
 }
 
 /*
@@ -605,8 +622,7 @@ g_cube_picksplit(PG_FUNCTION_ARGS)
 	GistEntryVector *entryvec = (GistEntryVector *) PG_GETARG_POINTER(0);
 	GIST_SPLITVEC *v = (GIST_SPLITVEC *) PG_GETARG_POINTER(1);
 
-	OffsetNumber i,
-				j;
+	OffsetNumber i;
 
 	SplitSortArgs sortargs;
 	int n = entryvec->n - FirstOffsetNumber;
@@ -1113,22 +1129,6 @@ cube_size(PG_FUNCTION_ARGS)
 	PG_RETURN_FLOAT8(result);
 }
 
-static void
-rt_cube_edge(NDBOX *a, double *size)
-{
-	int			i;
-	double		result = 0;
-
-	if (a != (NDBOX *)NULL)
-	{
-		for (i = 0; i < DIM(a); i++)
-			result += Abs(UR_COORD(a, i) - LL_COORD(a, i));
-	}
-	*size = result;
-	return;
-}
-
-void
 static void
 rt_cube_size(NDBOX *a, double *size)
 {
