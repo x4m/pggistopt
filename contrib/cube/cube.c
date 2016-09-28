@@ -423,6 +423,16 @@ g_cube_decompress(PG_FUNCTION_ARGS)
 }
 
 
+static inline float
+pack_float(float actualValue, int realm)
+{
+	// two bits for realm, other for value
+	int realmAjustment = *((int*)&actualValue)/4;
+	int realCode = realm * (INT32_MAX/4) + realmAjustment; // we have 4 realms
+	return *((float*)&realCode);
+}
+
+
 /*
 ** The GiST Penalty method for boxes
 ** As in the R-tree paper, we use change in area as our penalty metric
@@ -443,9 +453,40 @@ g_cube_penalty(PG_FUNCTION_ARGS)
 	rt_cube_size(DatumGetNDBOX(origentry->key), &tmp2);
 	*result = (float) (tmp1 - tmp2);
 
-	/*
-	 * fprintf(stderr, "penalty\n"); fprintf(stderr, "\t%g\n", *result);
-	 */
+	/* Realm tricks are used only in case of IEEE754 support(IEC 60559) */
+
+	/* REALM 0: No extension is required, volume is zero, return edge	*/
+	/* REALM 1: No extension is required, return nonzero volume			*/
+	/* REALM 2: Volume extension is zero, return nonzero edge extension	*/
+	/* REALM 3: Volume extension is nonzero, return it					*/
+
+	if( *result == 0 )
+	{
+		double tmp3 = tmp1; /* remember entry volume */
+		rt_cube_edge(ud, &tmp1);
+		rt_cube_edge(DatumGetNDBOX(origentry->key), &tmp2);
+		*result = (float) (tmp1 - tmp2);
+		if( *result == 0 )
+		{
+			if( tmp3 != 0 )
+			{
+				*result = pack_float(tmp3, 1); /* REALM 1 */
+			}
+			else
+			{
+				*result = pack_float(tmp1, 0); /* REALM 0 */
+			}
+		}
+		else
+		{
+			*result = pack_float(*result, 2); /* REALM 2 */
+		}
+	}
+	else
+	{
+		*result = pack_float(*result, 3); /* REALM 3 */
+	}
+
 	PG_RETURN_FLOAT8(*result);
 }
 
