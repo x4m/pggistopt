@@ -182,6 +182,8 @@ index_form_tuple(TupleDesc tupleDescriptor,
 	 * initialize metadata
 	 */
 	tuple->t_info = infomask;
+	tuple->t_skipflags = 0;
+	tuple->t_skipcount = 0;
 	return tuple;
 }
 

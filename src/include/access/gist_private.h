@@ -325,8 +325,6 @@ typedef struct
 #define  GistTupleSetValid(itup)	ItemPointerSetOffsetNumber( &((itup)->t_tid), TUPLE_IS_VALID )
 
 
-
-
 /*
  * A buffer attached to an internal node, used when building an index in
  * buffering mode.
@@ -456,7 +454,8 @@ extern bool gistplacetopage(Relation rel, Size freespace, GISTSTATE *giststate,
 				bool markleftchild);
 
 extern SplitedPageLayout *gistSplit(Relation r, Page page, IndexTuple *itup,
-		  int len, GISTSTATE *giststate);
+		  int len, GISTSTATE *giststate,bool
+		  (*fitfunction)(IndexTuple*, int));
 
 /* gistxlog.c */
 extern void gist_redo(XLogReaderState *record);
@@ -494,12 +493,16 @@ extern bool gistvalidate(Oid opclassoid);
 
 extern bytea *gistoptions(Datum reloptions, bool validate);
 extern bool gistfitpage(IndexTuple *itvec, int len);
+extern bool gistfitskiplayout(SplitedPageLayout *ptr);
+extern bool gistfitskiptuple(IndexTuple *itvec, int len);
 extern bool gistnospace(Page page, IndexTuple *itvec, int len, OffsetNumber todelete, Size freespace);
 extern void gistcheckpage(Relation rel, Buffer buf);
+extern void gistcheckpage1(Relation rel, Buffer buf, GISTSTATE *giststate);
 extern Buffer gistNewBuffer(Relation r);
 extern void gistfillbuffer(Page page, IndexTuple *itup, int len,
 			   OffsetNumber off);
 extern IndexTuple *gistextractpage(Page page, int *len /* out */ );
+extern IndexTuple * gistextractsplitpagelayout(SplitedPageLayout*ptr);
 extern IndexTuple *gistjoinvector(
 			   IndexTuple *itvec, int *len,
 			   IndexTuple *additvec, int addlen);
@@ -516,12 +519,13 @@ extern IndexTuple gistFormTuple(GISTSTATE *giststate,
 
 extern OffsetNumber gistchoose(Relation r, Page p,
 		   IndexTuple it,
-		   GISTSTATE *giststate);
+		   GISTSTATE *giststate,
+		   OffsetNumber *skipoffnum);
 
 extern void GISTInitBuffer(Buffer b, uint32 f);
 extern void gistdentryinit(GISTSTATE *giststate, int nkey, GISTENTRY *e,
 			   Datum k, Relation r, Page pg, OffsetNumber o,
-			   bool l, bool isNull);
+			   bool l, bool isNull, bool skipTuple);
 
 extern float gistpenalty(GISTSTATE *giststate, int attno,
 			GISTENTRY *key1, bool isNull1,

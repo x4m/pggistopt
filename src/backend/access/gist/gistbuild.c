@@ -572,6 +572,7 @@ gistProcessItup(GISTBuildState *buildstate, IndexTuple itup,
 					newtup;
 		Page		page;
 		OffsetNumber childoffnum;
+		OffsetNumber skipchildoffnum;
 
 		/* Have we reached a level with buffers? */
 		if (LEVEL_HAS_BUFFERS(level, gfbb) && level != startlevel)
@@ -590,7 +591,7 @@ gistProcessItup(GISTBuildState *buildstate, IndexTuple itup,
 		LockBuffer(buffer, GIST_EXCLUSIVE);
 
 		page = (Page) BufferGetPage(buffer);
-		childoffnum = gistchoose(indexrel, page, itup, giststate);
+		childoffnum = gistchoose(indexrel, page, itup, giststate, &skipchildoffnum);
 		iid = PageGetItemId(page, childoffnum);
 		idxtuple = (IndexTuple) PageGetItem(page, iid);
 		childblkno = ItemPointerGetBlockNumber(&(idxtuple->t_tid));

@@ -20,7 +20,7 @@
 #include "storage/indexfsm.h"
 #include "storage/lmgr.h"
 #include "utils/builtins.h"
-
+#include <signal.h>
 
 /*
  * Write itup vector to page, has no control of free space.
@@ -83,6 +83,28 @@ gistfitpage(IndexTuple *itvec, int len)
 	return (size <= GiSTPageSize);
 }
 
+bool
+gistfitskiplayout(SplitedPageLayout*ptr)
+{
+	int totallength = 0;
+	for (; ptr; ptr = ptr->next)
+	{
+		totallength += ptr->lenlist + IndexTupleSize(ptr->itup) + sizeof(ItemIdData)*(ptr->block.num+1);
+	}
+	return totallength<= GiSTPageSize;
+}
+
+
+bool
+gistfitskiptuple(IndexTuple *itvec, int len)
+{
+	/*TODO: we could consider actual sqrt-decomposition here
+	 * , but current aim is to build full bush of skiplists,
+	 * not just two-level structure*/
+
+	return len<=SKIPTUPLE_TRESHOLD;
+}
+
 /*
  * Read buffer into itup vector
  */
@@ -91,13 +113,41 @@ gistextractpage(Page page, int *len /* out */ )
 {
 	OffsetNumber i,
 				maxoff;
+	int counter = 0;
 	IndexTuple *itvec;
 
 	maxoff = PageGetMaxOffsetNumber(page);
-	*len = maxoff;
+	//*len = maxoff;
 	itvec = palloc(sizeof(IndexTuple) * maxoff);
 	for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
-		itvec[i - FirstOffsetNumber] = (IndexTuple) PageGetItem(page, PageGetItemId(page, i));
+	{
+		IndexTuple itup = (IndexTuple) PageGetItem(page, PageGetItemId(page, i));
+		if (!GistTupleIsSkip(itup))
+			itvec[counter++] = itup;
+	}
+	*len = counter;
+
+	return itvec;
+}
+
+
+/*
+ * Read split info into itup vector
+ */
+IndexTuple *
+gistextractsplitpagelayout(SplitedPageLayout*ptr)
+{
+	IndexTuple *itvec = palloc(sizeof(IndexTuple) * ptr->block.num);
+	char	   *data = (char *) (ptr->list);
+	int i;
+	for (i = 0; i < ptr->block.num; i++)
+				{
+					IndexTuple	thistup = (IndexTuple) data;
+					if(GistTupleIsSkip(thistup))
+						elog(ERROR,"Skiptuple found in skipgroup");
+					itvec[i]=data;
+					data += IndexTupleSize(thistup);
+				}
 
 	return itvec;
 }
@@ -175,7 +225,7 @@ gistMakeUnionItVec(GISTSTATE *giststate, IndexTuple *itvec, int len,
 						   evec->vector + evec->n,
 						   datum,
 						   NULL, NULL, (OffsetNumber) 0,
-						   FALSE, IsNull);
+						   FALSE, IsNull, false);
 			evec->n++;
 		}
 
@@ -299,7 +349,7 @@ gistDeCompressAtt(GISTSTATE *giststate, Relation r, IndexTuple tuple, Page p,
 		datum = index_getattr(tuple, i + 1, giststate->tupdesc, &isnull[i]);
 		gistdentryinit(giststate, i, &attdata[i],
 					   datum, r, p, o,
-					   FALSE, isnull[i]);
+					   FALSE, isnull[i], false);
 	}
 }
 
@@ -366,9 +416,10 @@ gistgetadjusted(Relation r, IndexTuple oldtup, IndexTuple addtup, GISTSTATE *gis
  */
 OffsetNumber
 gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
-		   GISTSTATE *giststate)
+		   GISTSTATE *giststate, OffsetNumber *skipoffnum)
 {
 	OffsetNumber result;
+	OffsetNumber seen_skipnum = InvalidOffsetNumber;
 	OffsetNumber maxoff;
 	OffsetNumber i;
 	float		best_penalty[INDEX_MAX_KEYS];
@@ -376,13 +427,16 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 				identry[INDEX_MAX_KEYS];
 	bool		isnull[INDEX_MAX_KEYS];
 	int			keep_current_best;
+	int			last_skipcount = 0;
+	int			seen_skipcount = 0;
 
-	Assert(!GistPageIsLeaf(p));
+	//Assert(!GistPageIsLeaf(p)); // TODO: Remove assertion: we can choose skiptuples even on leaf pages
 
 	gistDeCompressAtt(giststate, r,
 					  it, NULL, (OffsetNumber) 0,
 					  identry, isnull);
 
+	*skipoffnum = InvalidOffsetNumber;
 	/* we'll return FirstOffsetNumber if page is empty (shouldn't happen) */
 	result = FirstOffsetNumber;
 
@@ -432,6 +486,15 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 	for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
 	{
 		IndexTuple	itup = (IndexTuple) PageGetItem(p, PageGetItemId(p, i));
+
+		/*TODO: use skiptuple info for choose*/
+		if(GistTupleIsSkip(itup))
+		{
+			seen_skipnum = i;
+			seen_skipcount = GistTupleGetSkipCount(itup);
+			continue;
+		}
+
 		bool		zero_penalty;
 		int			j;
 
@@ -447,7 +510,7 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 			/* Compute penalty for this column. */
 			datum = index_getattr(itup, j + 1, giststate->tupdesc, &IsNull);
 			gistdentryinit(giststate, j, &entry, datum, r, p, i,
-						   FALSE, IsNull);
+						   FALSE, IsNull, false);
 			usize = gistpenalty(giststate, j, &entry, IsNull,
 								&identry[j], isnull[j]);
 			if (usize > 0)
@@ -464,6 +527,8 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 				 * remaining columns during subsequent loop iterations.
 				 */
 				result = i;
+				last_skipcount = seen_skipcount;
+				*skipoffnum = seen_skipnum;
 				best_penalty[j] = usize;
 
 				if (j < r->rd_att->natts - 1)
@@ -507,6 +572,8 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 			{
 				/* we choose to use the new tuple */
 				result = i;
+				last_skipcount = seen_skipcount;
+				*skipoffnum = seen_skipnum;
 				/* choose again if there are even more exactly-as-good ones */
 				keep_current_best = -1;
 			}
@@ -530,6 +597,9 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 		}
 	}
 
+	if(result - *skipoffnum > last_skipcount)
+		*skipoffnum = InvalidOffsetNumber;
+
 	return result;
 }
 
@@ -539,7 +609,7 @@ gistchoose(Relation r, Page p, IndexTuple it,	/* it has compressed entry */
 void
 gistdentryinit(GISTSTATE *giststate, int nkey, GISTENTRY *e,
 			   Datum k, Relation r, Page pg, OffsetNumber o,
-			   bool l, bool isNull)
+			   bool l, bool isNull, bool skipTuple)
 {
 	if (!isNull)
 	{
@@ -552,8 +622,15 @@ gistdentryinit(GISTSTATE *giststate, int nkey, GISTENTRY *e,
 											  PointerGetDatum(e)));
 		/* decompressFn may just return the given pointer */
 		if (dep != e)
+		{
 			gistentryinit(*e, dep->key, dep->rel, dep->page, dep->offset,
 						  dep->leafkey);
+		}
+
+		if (skipTuple)
+		{
+			e->leafpage = false;
+		}
 	}
 	else
 		gistentryinit(*e, (Datum) 0, r, pg, o, l);
@@ -719,6 +796,7 @@ void
 gistcheckpage(Relation rel, Buffer buf)
 {
 	Page		page = BufferGetPage(buf);
+	int maxoff,i,o;
 
 	/*
 	 * ReadBuffer verifies that every newly-read page passes
@@ -744,6 +822,84 @@ gistcheckpage(Relation rel, Buffer buf)
 						RelationGetRelationName(rel),
 						BufferGetBlockNumber(buf)),
 				 errhint("Please REINDEX it.")));
+#ifdef SKIPTUPLE_DEBUG
+	maxoff = PageGetMaxOffsetNumber(page);
+
+		for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
+		{
+			IndexTuple itup = (IndexTuple) PageGetItem(page, PageGetItemId(page, i));
+			if (GistTupleIsSkip(itup))
+			{
+				for (o = i+1; o <= i+GistTupleGetSkipCount(itup); o = OffsetNumberNext(o))
+				{
+					IndexTuple otup = (IndexTuple) PageGetItem(page, PageGetItemId(page, o));
+					if(GistTupleIsSkip(otup))
+					{
+						//raise(SIGTRAP);
+						elog(ERROR,"wrong place for skiptuple at %d skiptuple index %d skipcount %d page %x",o,i,GistTupleGetSkipCount(itup),page);
+					}
+				}
+			}
+		}
+#endif
+}
+
+/*
+ * Verify that a freshly-read page looks sane and check all the skiptuples.
+ */
+void
+gistcheckpage1(Relation rel, Buffer buf, GISTSTATE *giststate)
+{
+	Page		page = BufferGetPage(buf);
+	int maxoff,i,o;
+
+	/*
+	 * ReadBuffer verifies that every newly-read page passes
+	 * PageHeaderIsValid, which means it either contains a reasonably sane
+	 * page header or is all-zero.  We have to defend against the all-zero
+	 * case, however.
+	 */
+	if (PageIsNew(page))
+		ereport(ERROR,
+				(errcode(ERRCODE_INDEX_CORRUPTED),
+			 errmsg("index \"%s\" contains unexpected zero page at block %u",
+					RelationGetRelationName(rel),
+					BufferGetBlockNumber(buf)),
+				 errhint("Please REINDEX it.")));
+
+	/*
+	 * Additionally check that the special area looks sane.
+	 */
+	if (PageGetSpecialSize(page) != MAXALIGN(sizeof(GISTPageOpaqueData)))
+		ereport(ERROR,
+				(errcode(ERRCODE_INDEX_CORRUPTED),
+				 errmsg("index \"%s\" contains corrupted page at block %u",
+						RelationGetRelationName(rel),
+						BufferGetBlockNumber(buf)),
+				 errhint("Please REINDEX it.")));
+#ifdef SKIPTUPLE_DEBUG
+	maxoff = PageGetMaxOffsetNumber(page);
+
+		for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
+		{
+			IndexTuple itup = (IndexTuple) PageGetItem(page, PageGetItemId(page, i));
+			if (GistTupleIsSkip(itup))
+			{
+				for (o = i+1; o <= i+GistTupleGetSkipCount(itup); o = OffsetNumberNext(o))
+				{
+					IndexTuple otup = (IndexTuple) PageGetItem(page, PageGetItemId(page, o));
+					if(GistTupleIsSkip(otup))
+					{
+						//raise(SIGTRAP);
+						elog(ERROR,"wrong place for skiptuple at %d skiptuple index %d skipcount %d page %x",o,i,GistTupleGetSkipCount(itup),page);
+					}
+
+					if(gistgetadjusted(rel, itup, otup,  giststate))
+						elog(ERROR,"Key at %d do not fit in skiptuple index %d skipcount %d page %x",o,i,GistTupleGetSkipCount(itup),page);
+				}
+			}
+		}
+#endif
 }
 
 
