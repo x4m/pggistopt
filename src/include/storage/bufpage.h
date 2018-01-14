@@ -404,6 +404,7 @@ extern Size PageGetFreeSpace(Page page);
 extern Size PageGetExactFreeSpace(Page page);
 extern Size PageGetHeapFreeSpace(Page page);
 extern void PageIndexTupleDelete(Page page, OffsetNumber offset);
+extern void PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup, Size newsize);
 extern void PageIndexMultiDelete(Page page, OffsetNumber *itemnos, int nitems);
 extern void PageIndexDeleteNoCompact(Page page, OffsetNumber *itemnos,
 						 int nitems);

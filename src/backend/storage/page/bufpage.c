@@ -675,6 +675,118 @@ PageGetHeapFreeSpace(Page page)
 
 
 /*
+ * PageIndexTupleOverwrite
+ *
+ * This routine does the work of overwriting a tuple on an index page.
+ *
+ * Unlike heap pages, we keep compacted line pointers.
+ */
+void
+PageIndexTupleOverwrite(Page page, OffsetNumber offnum, Item newtup, Size newsize)
+{
+	PageHeader	phdr = (PageHeader) page;
+	char		*addr;
+	ItemId		tupid;
+	int			size_diff;
+	int			oldsize;
+	unsigned	offset;
+	unsigned	alignednewsize;
+	int			itemcount;
+
+	/*
+	 * As with PageIndexTupleDelete, paranoia is told to be justified.
+	 */
+	if (phdr->pd_lower < SizeOfPageHeaderData ||
+		phdr->pd_lower > phdr->pd_upper ||
+		phdr->pd_upper > phdr->pd_special ||
+		phdr->pd_special > BLCKSZ)
+		ereport(ERROR,
+				(errcode(ERRCODE_DATA_CORRUPTED),
+				 errmsg("corrupted page pointers: lower = %u, upper = %u, special = %u",
+						phdr->pd_lower, phdr->pd_upper, phdr->pd_special)));
+
+
+
+	itemcount = PageGetMaxOffsetNumber(page);
+	if ((int) offnum <= 0 || (int) offnum > itemcount)
+		elog(ERROR, "invalid index offnum: %u", offnum);
+
+	tupid = PageGetItemId(page, offnum);
+	/* set the item pointer */
+
+
+	Assert(ItemIdHasStorage(tupid));
+
+	alignednewsize = MAXALIGN(newsize);
+	oldsize = ItemIdGetLength(tupid);
+	/* tuples on a page are always maxaligned */
+	oldsize = MAXALIGN(oldsize);
+	/* may have negative size here if new tuple is larger */
+	size_diff = oldsize - alignednewsize;
+	offset = ItemIdGetOffset(tupid);
+
+
+	if (offset < phdr->pd_upper || (offset + size_diff) > phdr->pd_special ||
+		offset != MAXALIGN(offset) || (offset + size_diff) < phdr->pd_lower)
+		ereport(ERROR,
+				(errcode(ERRCODE_DATA_CORRUPTED),
+				 errmsg("corrupted item offset: offset = %u, size = %u",
+						offset, (unsigned int) size_diff)));
+
+
+	/*
+	 * Now move everything between the old upper bound (beginning of tuple
+	 * space) and the end of the overwritten tuple forward, so that space in
+	 * the middle of the page is left free.  If we've just deleted the tuple
+	 * at the beginning of tuple space, then there's no need to do the copy
+	 * (and bcopy on some architectures SEGV's if asked to move zero bytes).
+	 */
+
+	/* beginning of tuple space */
+	addr = (char *) page + phdr->pd_upper;
+
+	/* skip modifications if nothing has to be changed actually */
+	if (size_diff != 0)
+	{
+		int			i;
+		memmove(addr + size_diff, addr, (int) (offset - phdr->pd_upper));
+
+		/* adjust free space boundary pointers */
+		phdr->pd_upper += size_diff;
+
+		/*
+		 * we need to adjust the linp entries that remain.
+		 *
+		 * Anything that used to be before the deleted tuple's data was moved
+		 * forward by the size of the deleted tuple.
+		 */
+
+		for (i = FirstOffsetNumber; i <= itemcount; i++)
+		{
+			ItemId		ii = PageGetItemId(phdr, i);
+
+			/* Normally here was following assertion
+			 * Assert(ItemIdHasStorage(ii));
+			 * This assertion was introduced in PageIndexTupleDelete
+			 * But if this function will be used from BRIN index
+			 * this assertion will fail. Thus, here we do not check that
+			 * item has the storage.
+			 * */
+			if (ItemIdGetOffset(ii) <= offset)
+				ii->lp_off += size_diff;
+		}
+	}
+
+	/* Fix updated tuple length */
+	ItemIdSetNormal(tupid, offset + size_diff, newsize);
+
+
+	/* now place new tuple on page */
+	memmove(PageGetItem(page,tupid), newtup, newsize);
+}
+
+
+/*
  * PageIndexTupleDelete
  *
  * This routine does the work of removing a tuple from an index page.
